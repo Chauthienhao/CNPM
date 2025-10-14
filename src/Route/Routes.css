@@ -1,0 +1,98 @@
+/* Layout tổng */
+.routes-container {
+  display: flex;
+  height: 100vh;
+  background: #26313b; 
+  font-family: Arial, sans-serif;
+}
+.routes-main { flex: 1; padding: 20px; color: #fff; }
+.routes-title { font-size: 28px; margin-bottom: 16px; }
+
+/* Tìm kiếm */
+.search-container { display: flex; gap: 8px; max-width: 420px; }
+.search-input {
+  flex: 1; padding: 10px 14px; border: none; border-radius: 20px;
+  background: #e7eef3; color: #223; outline: none;
+}
+.search-btn { padding: 10px 14px; border: none; border-radius: 20px; background: #8da1b0; color: #fff; }
+
+/* Map placeholder */
+.map-container { background: #fff; border-radius: 10px; overflow: hidden; height: 420px; margin-top: 16px; }
+.map-placeholder { width: 100%; height: 100%; background: #dde6ee; display: flex; align-items: center; justify-content: center; }
+.map-text { color: #6c7a86; }
+
+/* Sidebar danh sách tuyến */
+.routes-sidebar { width: 360px; background: #31414f; display: flex; flex-direction: column; }
+.routes-list { flex: 1; padding: 18px; overflow-y: auto; }
+
+/* Card tuyến */
+.route-card {
+  background: #15334d;                 
+  border: 2px solid #0f6aa0;         
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: #e9f3fb;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.15) inset;
+}
+.route-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.route-time { font-weight: 700; font-size: 18px; letter-spacing: 0.2px; }
+.route-id { font-weight: 800; font-size: 22px; }
+
+/* Thân card: trái (điểm), phải (nút) */
+.route-body {
+  display: grid;
+  grid-template-columns: 1fr 170px;
+  gap: 16px;
+  align-items: center; 
+  margin-top: 6px;
+}
+
+/* Cột trái: điểm + đường nối dọc */
+.route-points {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-left: 6px;
+}
+.route-points::before {
+  content: '';
+  position: absolute;
+  left: 16px; top: 22px; bottom: 22px;
+  width: 2px; background: rgba(255,255,255,0.25); border-radius: 1px;
+}
+.route-point { display: flex; align-items: center; gap: 12px; }
+.point-indicator { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 16px; }
+.point-indicator.arrival { background: #28b0ff; }
+.point-indicator.departure { background: #36d27d; }
+.point-label { color: #d7e6f2; font-weight: 600; }
+
+/* Cột phải: nút hiển thị xe ở giữa */
+.route-controls { display: flex; justify-content: center; align-items: center; }
+.show-bus-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 22px;
+  background:#19c6d9;    /* màu nút */
+  color: #0b2b36;         /* màu chữ giống mẫu */
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .2s ease, transform .1s ease;
+}
+.show-bus-btn:hover { background: #14afc1; transform: translateY(-1px); }
+
+/* Scrollbar nhẹ cho sidebar */
+.routes-list::-webkit-scrollbar { width: 8px; }
+.routes-list::-webkit-scrollbar-thumb { background: #6e879a; border-radius: 4px; }
+.routes-list::-webkit-scrollbar-track { background: transparent; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .routes-container { flex-direction: column; }
+  .routes-sidebar { width: 100%; height: 320px; }
+  .map-container { height: 300px; }
+}
