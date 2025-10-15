@@ -1,9 +1,10 @@
 import Header from '../Header/Header';
 import SideBar from '../LeftSideBar/SideBar';
+import './Taixe.css';
 function Taixe() {
   return (
     <div className="app-wrapper">
-        {/* <Header /> */}
+        <Header />
         <div className="Main">
             {/* Sidebar trái */}
             <SideBar />
