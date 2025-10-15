@@ -50,7 +50,7 @@ function Taixe() {
                 <h1 className='taixe-title'>Quản lý tài xế</h1>
                 <div className='taixe-search'>
                     <input type="text" placeholder="Tìm kiếm thông tin tài xế..." className='taixe-input'/>
-                    <button className='taixe-button'>Tìm kiếm</button>
+                    <button className='taixe-button'>🔍</button>
                 </div>
                 <table className="taixe-table">
                     <thead>

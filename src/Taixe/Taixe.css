@@ -42,6 +42,11 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
 }
+.taixe-input:focus {
+  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.3);
+  background: #ffffff;
+}
+
 .taixe-button{
     padding: 12px 16px; 
     border: none; 
@@ -54,6 +59,11 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     margin-left: 10px;
 }
+.taixe-button:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(52, 152, 219, 0.4);
+}
 .taixe-table{
     width : 100%;
     border-collapse: collapse;
@@ -65,11 +75,69 @@
 .taixe-table td {
   border: 1px solid #ddd;
   padding: 10px 12px;
-  text-align: left;
 }
 
 .taixe-table th {
   background-color: #007bff;
   color: white;
   font-weight: bold;
+}
+.taixe-table tr:hover {
+  background-color: #005169;
+}
+
+/* Trạng thái */
+.status {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-block;
+  text-align: center;
+  min-width: 110px;
+}
+
+.status.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.status.busy {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* 🔸 Nút hành động */
+.edit-btn,
+.delete-btn {
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-right: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.edit-btn {
+  background-color: #ffc107;
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: #e0a800;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
 }
