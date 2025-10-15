@@ -1,9 +1,19 @@
 import Header from '../Header/Header';
+import SideBar from '../LeftSideBar/SideBar';
 function Taixe() {
   return (
-    <div>
-      <Header />
-      <h1>Taixe Page</h1>
+    <div className="app-wrapper">
+        {/* <Header /> */}
+        <div className="Main">
+            {/* Sidebar trái */}
+            <SideBar />
+
+            {/* Phần chính - Main và Search */}
+            <div className="taixe-main">
+                <h1 className='taixe-title'>Quản lý tài xế</h1>
+            </div>
+        </div>
+            
     </div>
   );
 }

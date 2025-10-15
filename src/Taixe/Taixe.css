@@ -1,0 +1,25 @@
+.app-wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.Main{
+    display: flex;
+    flex: 1;
+    background: #26313b;
+    font-family: Arial, sans-serif;
+}
+
+.taixe-main{
+    flex: 1; 
+    padding: 20px; 
+    color: #fff; 
+}
+.taixe-title{
+    font-size: 28px; 
+    margin-bottom: 16px;
+    color: #ecf0f1;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    
+}
