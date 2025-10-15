@@ -12,13 +12,13 @@
   font-family: Arial, sans-serif;
 }
 
-/* Sidebar trái - Menu chức năng */
+/* Sidebar trái - Menu chức năng
 .menu-sidebar {
   width: 200px;
   background: #1e2a35;
   padding: 20px 10px;
   border-right: 2px solid #34495e;
-}
+} */
 
 .menu-buttons {
   display: flex;
@@ -557,4 +557,7 @@
   .coordinate-value {
     font-size: 10px;
   }
+
+  
 }
+
