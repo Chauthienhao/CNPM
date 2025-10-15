@@ -1,0 +1,286 @@
+/* App wrapper - chứa Header */
+.app-wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Page body - chứa LeftSideBar và nội dung */
+.page-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: #1f2329;
+}
+
+/* Schedule container - nội dung bên phải LeftSideBar */
+.schedule-container {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  overflow: auto;
+  background: #2a3139;
+}
+
+.schedule-main {
+  flex: 1;
+  background: #1f2329;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.schedule-title {
+  color: white;
+  font-size: 24px;
+  margin: 0 0 20px 0;
+  font-weight: 700;
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: #3a4149;
+  color: #aaa;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.tab-btn.active {
+  background: #4a7fd9;
+  color: white;
+}
+
+.tab-btn:hover {
+  background: #4a5661;
+}
+
+.schedule-grid {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.day-headers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  background: #e8ecef;
+  padding: 10px;
+  gap: 1px;
+}
+
+.day-header {
+  text-align: center;
+  font-weight: 700;
+  color: #333;
+  padding: 8px;
+}
+
+.schedule-content {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: #e0e0e0;
+  min-height: 400px;
+}
+
+.day-column {
+  background: white;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-item {
+  background: #f0f4ff;
+  border-left: 3px solid #4a7fd9;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.route-name {
+  font-weight: 700;
+  color: #333;
+  font-size: 13px;
+}
+
+.route-time {
+  color: #666;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Sidebar bên phải - THIẾT KẾ MỚI */
+.schedule-sidebar {
+  width: 300px;
+  background: #7a7d82;
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sidebar-section label {
+  display: block;
+  margin: 12px 0 6px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* INPUT & DROPDOWN - STYLE THEO DESIGN */
+.input-field,
+.dropdown {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  background: #2d3139;
+  color: #9ca3af;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+
+.input-field {
+  cursor: text;
+  color: #ffffff;
+}
+
+.input-field::placeholder {
+  color: #6b7280;
+}
+
+.input-field:focus,
+.dropdown:focus {
+  border: 1px solid #4a7fd9;
+  background: #3a4149;
+  color: #ffffff;
+}
+
+.dropdown {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.dropdown option {
+  background: #2d3139;
+  color: #ffffff;
+  padding: 8px;
+}
+
+/* BUTTONS */
+.sidebar-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.btn-cancel,
+.btn-save {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.btn-cancel {
+  background: #4a4d52;
+  color: white;
+}
+
+.btn-save {
+  background: #4a7fd9;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #5a5d62;
+}
+
+.btn-save:hover {
+  background: #3a6dc9;
+}
+
+.btn-cancel:active,
+.btn-save:active {
+  transform: scale(0.98);
+}
+
+.readonly-field {
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  background: #2d3139;
+  color: #9ca3af;
+  font-size: 14px;
+  font-family: inherit;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.readonly-field:not(:empty) {
+  color: #ffffff;
+}
+
+
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .schedule-container {
+    flex-direction: column;
+  }
+  
+  .schedule-sidebar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .schedule-content {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .day-headers {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .tab-buttons {
+    flex-wrap: wrap;
+  }
+  
+  .schedule-main {
+    padding: 12px;
+  }
+}
