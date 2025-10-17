@@ -63,10 +63,10 @@ const Schedule = () => {
 
   return (
     <div className="app-wrapper">
-      <Header />
+      {/* <Header /> */}
       
       <div className="page-body">
-        <Sidebar activeMenu={activeMenu} onMenuClick={handleMenuClick} />
+        {/* <Sidebar activeMenu={activeMenu} onMenuClick={handleMenuClick} /> */}
         
         <div className="schedule-container">
           <div className="schedule-main">

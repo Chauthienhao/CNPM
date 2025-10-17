@@ -246,10 +246,10 @@ const Routes = () => {
 
   return (
     <div className="app-wrapper">
-      <Header />
+      {/* <Header /> */}
       
       <div className="routes-container">
-        <Sidebar activeMenu={activeMenu} onMenuClick={handleMenuClick} />
+        {/* <Sidebar activeMenu={activeMenu} onMenuClick={handleMenuClick} /> */}
 
         <div className="routes-main">
           <h1 className="routes-title">Tuyến đường các xe</h1>
@@ -313,7 +313,7 @@ const Routes = () => {
 
         <div className="routes-sidebar">
           <div className="sidebar-header">
-            <h3 style={{ color: '#ffffff' }}>Danh sách xe buýt</h3>
+            <h3 style={{ color: '#ffffff', textAlign: 'center' }}>Danh sách xe buýt</h3>
             <span className="bus-count" style={{ color: '#ffffff'}}>{filteredRoutes.length} xe</span>
           </div>
 

@@ -36,6 +36,7 @@
   font-size: 24px;
   margin: 0 0 20px 0;
   font-weight: 700;
+  text-align: center;
 }
 
 .tab-buttons {
@@ -235,7 +236,7 @@
 }
 
 .readonly-field {
-  width: 100%;
+  width: 90%;
   padding: 12px;
   border-radius: 6px;
   background: #2d3139;
