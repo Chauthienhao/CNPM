@@ -290,7 +290,7 @@ const Routes = () => {
               filteredRoutes.map(route => (
                 <div key={route.id} className="route-card">
                   <div className="route-header">
-                    <span className="route-time">Thời gian đến: {route.status}</span>
+                    <span className="route-time" style={{ color: '#ffffff' }}>Thời gian đến: {route.status}</span>
                     <span className="route-id">XE: {route.id}</span>
                   </div>
                   
