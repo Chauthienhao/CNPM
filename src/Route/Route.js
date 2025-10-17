@@ -1,13 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import Header from '../Header/Header';
 import Sidebar from '../LeftSideBar/SideBar';
 import './Routes.css';
-
 
 const Routes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeMenu, setActiveMenu] = useState('route');
+  const [selectedBus, setSelectedBus] = useState(null);
+  const [map, setMap] = useState(null);
+
+  const mapContainerStyle = {
+    width: '100%',
+    height: '100%',
+    borderRadius: '8px'
+  };
+
+  // Trung tâm TP.HCM
+  const center = {
+    lat: 10.8231,
+    lng: 106.6297
+  };
+
+  const mapOptions = {
+    disableDefaultUI: false,
+    zoomControl: true,
+    streetViewControl: false,
+    mapTypeControl: true,
+    fullscreenControl: true,
+  };
 
   // Update time every second
   useEffect(() => {
@@ -182,24 +204,25 @@ const Routes = () => {
     return 'online';
   };
 
+  const getMarkerIcon = (speed, isOnline) => {
+    if (!isOnline) {
+      return 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+    }
+    if (speed === 0) {
+      return 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+    }
+    return 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+  };
+
   const onlineBuses = busRoutes.filter(route => route.isOnline).length;
   const activeBuses = busRoutes.filter(route => route.speed > 0).length;
 
   const handleShowBus = (id) => {
     const bus = busRoutes.find(route => route.id === id);
-    if (bus) {
-      console.log('Tracking Data:', {
-        busId: bus.id,
-        trackingId: bus.trackingId,
-        timestamp: bus.timestamp,
-        latitude: bus.latitude,
-        longitude: bus.longitude,
-        speed: bus.speed,
-        isOnline: bus.isOnline,
-        delay: bus.calculateDelay()
-      });
-      
-      alert(`Hiển thị xe ${bus.id} trên bản đồ\n\nTracking ID: ${bus.trackingId}\nVị trí: ${bus.latitude.toFixed(6)}, ${bus.longitude.toFixed(6)}\nTốc độ: ${bus.speed} km/h\nTrạng thái: ${bus.isOnline ? '🟢 Online' : '🔴 Offline'}`);
+    if (bus && map) {
+      map.panTo({ lat: bus.latitude, lng: bus.longitude });
+      map.setZoom(15);
+      setSelectedBus(bus);
     }
   };
 
@@ -226,10 +249,8 @@ const Routes = () => {
       <Header />
       
       <div className="routes-container">
-        {/* Sidebar trái */}
         <Sidebar activeMenu={activeMenu} onMenuClick={handleMenuClick} />
 
-        {/* Phần chính - Map và Search */}
         <div className="routes-main">
           <h1 className="routes-title">Tuyến đường các xe</h1>
 
@@ -245,40 +266,51 @@ const Routes = () => {
           </div>
 
           <div className="map-container">
-            <div className="map-placeholder">
-              <div className="map-icon"></div>
-              <div className="map-text">Bản đồ tuyến đường</div>
-              
-              <div className="tracking-info">
-                <div className="info-row">
-                  <span className="info-icon"></span>
-                  <span className="info-label">Tracking System Ready</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-icon"></span>
-                  <span className="info-label">Total Buses: <strong>{busRoutes.length}</strong></span>
-                </div>
-                <div className="info-row">
-                  <span className="info-icon"></span>
-                  <span className="info-label">Online: <strong>{onlineBuses}</strong></span>
-                  <span className="info-divider">|</span>
-                  <span className="info-icon"></span>
-                  <span className="info-label">Offline: <strong>{busRoutes.length - onlineBuses}</strong></span>
-                </div>
-                <div className="info-row">
-                  <span className="info-icon"></span>
-                  <span className="info-label">Active: <strong>{activeBuses}</strong></span>
-                </div>
-                <div className="info-row">
-                  <span className="info-icon"></span>
-                  <span className="info-label">Last Update: <strong>{currentTime.toLocaleTimeString()}</strong></span>
-                </div>
-              </div>
-            </div>
+            <LoadScript googleMapsApiKey="AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY">
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={center}
+                zoom={13}
+                options={mapOptions}
+                onLoad={(map) => setMap(map)}
+              >
+                {busRoutes.map((bus) => (
+                  <Marker
+                    key={bus.id}
+                    position={{ lat: bus.latitude, lng: bus.longitude }}
+                    icon={getMarkerIcon(bus.speed, bus.isOnline)}
+                    onClick={() => setSelectedBus(bus)}
+                    title={`Xe ${bus.id}`}
+                  />
+                ))}
+
+                {selectedBus && (
+                  <InfoWindow
+                    position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}
+                    onCloseClick={() => setSelectedBus(null)}
+                  >
+                    <div style={{ padding: '10px', minWidth: '200px' }}>
+                      <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {selectedBus.id}</h3>
+                      <p style={{ margin: '5px 0', color: '#666' }}>
+                        <strong>Tracking ID:</strong> {selectedBus.trackingId}
+                      </p>
+                      <p style={{ margin: '5px 0', color: '#666' }}>
+                        <strong>Tốc độ:</strong> {selectedBus.speed} km/h
+                      </p>
+                      <p style={{ margin: '5px 0', color: '#666' }}>
+                        <strong>Trạng thái:</strong> {selectedBus.isOnline ? '🟢 Online' : '🔴 Offline'}
+                      </p>
+                      <p style={{ margin: '5px 0', color: '#666', fontSize: '12px' }}>
+                        <strong>Vị trí:</strong> {selectedBus.latitude.toFixed(6)}, {selectedBus.longitude.toFixed(6)}
+                      </p>
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
+            </LoadScript>
           </div>
         </div>
 
-        {/* Sidebar phải - Danh sách xe */}
         <div className="routes-sidebar">
           <div className="sidebar-header">
             <h3 style={{ color: '#ffffff' }}>Danh sách xe buýt</h3>
@@ -312,11 +344,11 @@ const Routes = () => {
                     
                     <div className="coordinates-section">
                       <div className="coordinate-item">
-                        <span className="coordinate-label"> Latitude</span>
+                        <span className="coordinate-label">📍 Latitude</span>
                         <span className="coordinate-value">{route.latitude.toFixed(6)}</span>
                       </div>
                       <div className="coordinate-item">
-                        <span className="coordinate-label"> Longitude</span>
+                        <span className="coordinate-label">📍 Longitude</span>
                         <span className="coordinate-value">{route.longitude.toFixed(6)}</span>
                       </div>
                     </div>
@@ -339,7 +371,7 @@ const Routes = () => {
                         className="show-bus-btn"
                         onClick={() => handleShowBus(route.id)}
                       >
-                        <span className="btn-icon"></span>
+                        <span className="btn-icon">📍</span>
                         <span className="btn-text">Hiển thị</span>
                       </button>
                     </div>

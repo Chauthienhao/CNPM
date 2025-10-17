@@ -7,9 +7,9 @@ import ThongBao from './ThongBao/Notification';
 function App() {
   return (
     <div className="App">
-      <Taixe />
+      {/* <Taixe /> */}
       {/* <Schedule /> */}
-      {/* <Route /> */}
+      <Route />
       {/* <ThongBao /> */}
     </div>
   );
