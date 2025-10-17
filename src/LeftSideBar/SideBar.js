@@ -5,7 +5,7 @@ const Sidebar = ({ activeMenu = 'route', onMenuClick }) => {
   const menuItems = [
     { id: 'dashboard', icon: '', label: 'Dashboard' },
     { id: 'schedule', icon: '', label: 'Lịch trình' },
-    { id: 'driver', icon: '', label: 'Tài xế' },
+    { id: 'driver', icon: '', label: 'Tài xế' , path: '/Taixe/Taixe.js' },
     { id: 'student', icon: '', label: 'Học sinh' },
     { id: 'route', icon: '', label: 'Tuyến đường' },
     { id: 'notification', icon: '', label: 'Thông báo' }

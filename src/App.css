@@ -1,7 +1,17 @@
 .App {
-  text-align: center;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
-
+.Main-app{
+    display: flex;
+    flex: 1;
+    background: #26313b;
+    font-family: Arial, sans-serif;
+}
+.Main-content{
+  flex:1;
+}
 .App-logo {
   height: 40vmin;
   pointer-events: none;

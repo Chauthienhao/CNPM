@@ -40,10 +40,9 @@ function Taixe() {
     };
   return (
     <div className="app-wrapper">
-        <Header />
         <div className="Main">
             {/* Sidebar trái */}
-            <SideBar activeMenu={activeMenu} onMenuClick={handleMenuClick}/>
+            {/* <SideBar activeMenu={activeMenu} onMenuClick={handleMenuClick}/> */}
 
             {/* Phần chính - Main và Search */}
             <div className="taixe-main">
