@@ -2,6 +2,7 @@ import './App.css';
 import Route from './Route/Route';
 import Taixe from './Taixe/Taixe';
 import Schedule from './Schedule/Schedule';
+import ThongBao from './ThongBao/Notification';
 
 function App() {
   return (
@@ -9,6 +10,7 @@ function App() {
       <Taixe />
       {/* <Schedule /> */}
       {/* <Route /> */}
+      {/* <ThongBao /> */}
     </div>
   );
 }
