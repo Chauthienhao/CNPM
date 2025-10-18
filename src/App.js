@@ -7,6 +7,7 @@ import Taixe from './Taixe/Taixe';
 import Dashboard from './Dashboard/Dashboard';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
+import { useJsApiLoader } from '@react-google-maps/api';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState('driver');
@@ -21,17 +22,28 @@ function App() {
       case 'schedule':
         return <Schedule />;
       case 'route':
-        return <Route />;
+        return <Route isLoaded={isLoaded} loadError={loadError} />;
       case 'notification':
         return <ThongBao />;
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard isLoaded={isLoaded} loadError={loadError} />;
       // case 'student':
       //   return <h2>Trang Học sinh</h2>;
       // default:
       //   return <h2>Chọn menu bên trái</h2>;
     }
   };
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey:
+      process.env.REACT_APP_GMAPS_KEY ||
+      import.meta?.env?.VITE_GMAPS_KEY ||
+      'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY',
+    libraries: ['places']
+  });
+  if (loadError) {
+        return <div>Lỗi tải API Google Maps</div>;
+    }
   return (
     <div className="App">
       <Header />

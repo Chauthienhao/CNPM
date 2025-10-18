@@ -1,21 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+//bỏ useJsApiLoader vì bị lỗi gọi lại google map API
+import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 import './Routes.css';
 
-const Routes = () => {
+const Routes = ({ isLoaded, loadError }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBus, setSelectedBus] = useState(null);
   const [map, setMap] = useState(null);
 
   // Load Google Maps 1 lần, dùng .env nếu có, fallback key bạn cung cấp
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey:
-      process.env.REACT_APP_GMAPS_KEY ||
-      import.meta?.env?.VITE_GMAPS_KEY ||
-      'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY',
-    libraries: ['places']
-  });
 
   // Bắt lỗi auth (key/referrer/billing)
   useEffect(() => {

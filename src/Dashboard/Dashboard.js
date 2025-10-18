@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow} from '@react-google-maps/api';
 import './Dashboard.css'; // Đảm bảo file CSS này được load
 
 // Dữ liệu mô phỏng Dashboard (KPIs)
@@ -67,17 +67,10 @@ const getMarkerIcon = (bus) => {
 };
 
 
-function Dashboard() {
+function Dashboard({ isLoaded, loadError }) {
     const [selectedBus, setSelectedBus] = useState(null); 
     const [selectedBusDetails, setSelectedBusDetails] = useState(busRoutesData[0]); 
     const [map, setMap] = useState(null);
-
-    // --- LOGIC GOOGLE MAPS ---
-    const { isLoaded, loadError } = useJsApiLoader({
-        id: 'google-map-script-dashboard',
-        googleMapsApiKey: 'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY', 
-        libraries: ['places']
-    });
 
     useEffect(() => {
         window.gm_authFailure = () => {
