@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Header from './Header/Header';
 import Route from './Route/Route';
 import Taixe from './Taixe/Taixe';
+import Dashboard from './DashBoard/Dashboard';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
 
@@ -23,8 +24,8 @@ function App() {
         return <Route />;
       case 'notification':
         return <ThongBao />;
-      // case 'dashboard':
-      //   return <h2>Trang Dashboard</h2>;
+      case 'dashboard':
+        return <Dashboard />;
       // case 'student':
       //   return <h2>Trang Học sinh</h2>;
       // default:
