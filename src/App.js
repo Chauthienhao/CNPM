@@ -6,6 +6,7 @@ import Route from './Route/Route';
 import Taixe from './Taixe/Taixe';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
+import Students from './Students/Student';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState('driver');
@@ -25,8 +26,8 @@ function App() {
         return <ThongBao />;
       // case 'dashboard':
       //   return <h2>Trang Dashboard</h2>;
-      // case 'student':
-      //   return <h2>Trang Học sinh</h2>;
+      case 'student':
+        return <Students/>;
       // default:
       //   return <h2>Chọn menu bên trái</h2>;
     }
