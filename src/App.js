@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Header from './Header/Header';
 import Route from './Route/Route';
 import Taixe from './Taixe/Taixe';
-import Dashboard from './DashBoard/Dashboard';
+import Dashboard from './Dashboard/Dashboard';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
 
