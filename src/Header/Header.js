@@ -1,5 +1,6 @@
 import React from 'react';
 import './Header.css';
+import logoIcon from '../Develop/logo.png';
 
 const Header = () => {
   const getCurrentDateTime = () => {
@@ -20,6 +21,7 @@ const Header = () => {
     <div className="header">
       <div className="header-left">
         <div className="logo">
+          <img src={logoIcon} alt="SSB Logo" className="logo-img" />
         </div>
         <div className="header-info">
           <h1 className="app-title">SSB 1.0</h1>

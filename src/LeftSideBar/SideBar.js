@@ -1,21 +1,22 @@
 import React from 'react';
 import './SideBar.css';
 
-const Sidebar = ({ activeMenu = 'route', onMenuClick }) => {
-  const menuItems = [
-    { id: 'dashboard', icon: '', label: 'Dashboard' },
-    { id: 'schedule', icon: '', label: 'Lịch trình' },
-    { id: 'driver', icon: '', label: 'Tài xế' , path: '/Taixe/Taixe.js' },
-    { id: 'student', icon: '', label: 'Học sinh' },
-    { id: 'route', icon: '', label: 'Tuyến đường' },
-    { id: 'notification', icon: '', label: 'Thông báo' }
-  ];
+import dashboardIcon from '../Develop/dashboard.png';
+import driverIcon from '../Develop/driver.png';
+import routeIcon from '../Develop/route.png';
+import studentIcon from '../Develop/student.png';
+import scheduleIcon from '../Develop/schedule.png';
+import notificationIcon from '../Develop/notification.png';
 
-  const handleClick = (menuId) => {
-    if (onMenuClick) {
-      onMenuClick(menuId);
-    }
-  };
+const SideBar = ({ activeMenu, onMenuClick }) => {
+  const menuItems = [
+    { id: 'dashboard', icon: dashboardIcon, label: 'Dashboard' },
+    { id: 'route', icon: routeIcon, label: 'Tuyến đường' },
+    { id: 'driver', icon: driverIcon, label: 'Tài xế' },
+    { id: 'student', icon: studentIcon, label: 'Học sinh' },
+    { id: 'schedule', icon: scheduleIcon, label: 'Lịch trình' },
+    { id: 'notification', icon: notificationIcon, label: 'Thông báo' }
+  ];
 
   return (
     <div className="menu-sidebar">
@@ -23,10 +24,10 @@ const Sidebar = ({ activeMenu = 'route', onMenuClick }) => {
         {menuItems.map(item => (
           <button
             key={item.id}
-            onClick={() => handleClick(item.id)}
-            className={`menu-btn ${item.id} ${activeMenu === item.id ? 'active' : ''}`}
+            className={`menu-btn ${activeMenu === item.id ? 'active' : ''}`}
+            onClick={() => onMenuClick(item.id)}
           >
-            <span className="menu-icon">{item.icon}</span>
+            <img src={item.icon} alt="" className="menu-icon-img" />
             <span className="menu-label">{item.label}</span>
           </button>
         ))}
@@ -35,4 +36,4 @@ const Sidebar = ({ activeMenu = 'route', onMenuClick }) => {
   );
 };
 
-export default Sidebar;
+export default SideBar;

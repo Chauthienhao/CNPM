@@ -7,6 +7,7 @@ import Taixe from './Taixe/Taixe';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
 
+
 function App() {
   const [activeMenu, setActiveMenu] = useState('driver');
       const handleMenuClick = (menuId) => {
