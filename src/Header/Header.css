@@ -33,6 +33,14 @@
   filter: brightness(1.2); /* Làm sáng icon */
 }
 
+/* THÊM MỚI - Style cho logo ảnh */
+.logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
 .header-info {
   display: flex;
   flex-direction: column;
@@ -120,5 +128,10 @@
   
   .logo-icon {
     font-size: 20px;
+  }
+  
+  /* Responsive cho logo ảnh */
+  .logo-img {
+    padding: 3px;
   }
 }

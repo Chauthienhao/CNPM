@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Header from '../Header/Header';
-import SideBar from '../LeftSideBar/SideBar';
+// import Header from '../Header/Header';
+// import SideBar from '../LeftSideBar/SideBar';
 import './Notification.css';
 
 function ThongBao() {
@@ -58,9 +58,9 @@ function ThongBao() {
 
   return (
     <div className="app-wrapper">
-      <Header />
+      {/* <Header /> */}
       <div className="Main">
-        <SideBar activeMenu={activeMenu} onMenuClick={handleMenuClick} />
+        {/* <SideBar activeMenu={activeMenu} onMenuClick={handleMenuClick} /> */}
 
         {/* Nội dung chính */}
         <div className="thongbao-container">
