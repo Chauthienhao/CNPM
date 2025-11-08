@@ -9,18 +9,12 @@ import ThongBao from './ThongBao/Notification';
 import { useJsApiLoader } from '@react-google-maps/api';
 import Students from './Students/Student';
 import Taixe from './Taixe/Taixe';
-
-// Định nghĩa menu cho từng role
-const ROLE_MENUS = {
-  admin: ['dashboard','route','driver','student','schedule','notification'],
-  driver: ['schedule','student','notification','route'],
-  parent: ['route','notification','schedule']
-};
+import { ROLE_CONFIGS } from './ApplicableObject';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState('schedule');
-  // Hardcode role để test 
   const currentRole = 'admin'; 
+  
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
   };
@@ -64,7 +58,7 @@ function App() {
         <SideBar 
           activeMenu={activeMenu} 
           onMenuClick={handleMenuClick}
-          allowedMenuIds={ROLE_MENUS[currentRole]}
+          allowedMenuIds={ROLE_CONFIGS[currentRole]?.menus}
         />
         <div className="Main-content">{renderContent()}</div>
       </div>
