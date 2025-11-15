@@ -21,7 +21,7 @@
     color: #ecf0f1;
     font-weight: 700;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    
+    text-align: center;
 }
 .taixe-search{
     display: flex; 
@@ -70,6 +70,7 @@
     background: #2c3e50;
     margin-top: 20px;
     font-family: 'Segoe UI', sans-serif;
+    text-align: center;
 }
 .taixe-table th,
 .taixe-table td {

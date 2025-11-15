@@ -1,7 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Header.css';
+import LoginModal from '../components/Authentication/LoginModal';
+import SignupModal from '../components/Authentication/SignupModal';
+//import { NavLink } from 'react-router-dom';
+import logoIcon from '../Develop/logo.png';
 
 const Header = () => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const openSignupModal = () => {
+    setIsLoginModalOpen(false);
+    setIsSignupModalOpen(true);
+  };
+  const openLoginModal = () => {
+    setIsSignupModalOpen(false);
+    setIsLoginModalOpen(true);
+  };
   const getCurrentDateTime = () => {
     const now = new Date();
     const options = {
@@ -20,6 +34,7 @@ const Header = () => {
     <div className="header">
       <div className="header-left">
         <div className="logo">
+          <img src={logoIcon} alt="SSB Logo" className="logo-img" />
         </div>
         <div className="header-info">
           <h1 className="app-title">SSB 1.0</h1>
@@ -32,9 +47,19 @@ const Header = () => {
           {getCurrentDateTime()}
         </div>
         <div className="user-avatar">
-          <div className="avatar-circle">👤</div>
+          <div className="avatar-circle" onClick={() => setIsLoginModalOpen(true)}>👤</div>
         </div>
       </div>
+      {isLoginModalOpen && (
+        <div className="modal-backdrop">
+          <LoginModal onClose={() => setIsLoginModalOpen(false)} onOpenSignup={openSignupModal} />
+        </div>
+      )}
+      {isSignupModalOpen && (
+        <div className="modal-backdrop">
+          <SignupModal onClose={() => setIsSignupModalOpen(false)} onOpenLogin={openLoginModal} />
+        </div>
+      )}
     </div>
   );
 };
