@@ -3,7 +3,7 @@ import React, { useState } from "react";
 //import { NavLink } from "react-router-dom";
 import './LoginModal.css';
 
-const LoginModal = ({ onClose, onOpenSignup }) => {
+const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
     const [showpassword, setShowpassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -17,7 +17,7 @@ const LoginModal = ({ onClose, onOpenSignup }) => {
 
         if (email === validEmail && password === validPassword) {
             alert("Login successful!");
-            onClose(); // Close modal after successful login
+            onLoginSuccess(); // Close modal after successful login
         } else {
             alert("Invalid email or password. Please try again.");
         }

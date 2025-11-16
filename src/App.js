@@ -1,4 +1,5 @@
 import './App.css';
+import LoginModal from './components/Authentication/LoginModal';  
 import SideBar from './LeftSideBar/SideBar';
 import { useState } from 'react';
 import Header from './Header/Header';
@@ -13,6 +14,9 @@ import { ROLE_CONFIGS } from './ApplicableObject';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState('schedule');
+  // cần khai báo state để theo dõi đăng nhập
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Hardcode role để test 
   const currentRole = 'admin'; 
   
   const handleMenuClick = (menuId) => {
@@ -49,7 +53,31 @@ function App() {
   if (loadError) {
     return <div>Lỗi tải API Google Maps</div>;
   }
-  
+  // 3. Tạo hàm xử lý khi đăng nhập thành công
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+  };
+  
+  if (loadError) {
+    return <div>Lỗi tải API Google Maps</div>;
+  }
+
+  // 4. KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP
+  // Nếu chưa đăng nhập (isLoggedIn là false)
+  if (!isLoggedIn) {
+    return (
+      <div className="App">
+        <div className="Main-app">
+          {/* Hiển thị LoginModal và truyền hàm handleLoginSuccess vào */}
+          <LoginModal 
+            onLoginSuccess={handleLoginSuccess}
+            onClose={() => alert("Bạn phải đăng nhập để tiếp tục")} // Có thể thông báo
+            onOpenSignup={() => { /* Xử lý mở modal đăng ký */ }}
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="App">
       <Header />
