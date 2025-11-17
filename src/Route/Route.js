@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-//bỏ useJsApiLoader vì bị lỗi gọi lại google map API
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 import './Routes.css';
 
@@ -7,13 +6,49 @@ const Routes = ({ isLoaded, loadError }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBus, setSelectedBus] = useState(null);
   const [map, setMap] = useState(null);
+  const [busRoutes, setBusRoutes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Load Google Maps 1 lần, dùng .env nếu có, fallback key bạn cung cấp
+  // Load xe buýt từ DB (XeBus)
+  useEffect(() => {
+    const fetchBuses = async () => {
+      try {
+        setLoading(true);
+        console.log('[Route] Fetching buses from API...');
+        const res = await fetch('http://localhost:5000/buses');
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        console.log('[Route] Raw bus data:', data);
+        const formattedBuses = data.map((bus, idx) => ({
+          id: String(bus.id).padStart(2, '0'),
+          status: 'N/A',
+          trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
+          timestamp: new Date().toISOString(),
+          latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
+          longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
+          speed: bus.speed != null ? bus.speed : 0,
+          isOnline: bus.speed != null,
+          calculateDelay: () => 'N/A',
+          updateLocation: () => {}
+        }));
+        console.log('[Route] Formatted buses:', formattedBuses);
+        setBusRoutes(formattedBuses);
+        setError(null);
+      } catch (err) {
+        console.error('Lỗi tải dữ liệu xe:', err);
+        setError('Không thể tải danh sách xe');
+        setBusRoutes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBuses();
+  }, []);
 
-  // Bắt lỗi auth (key/referrer/billing)
+  // Bắt lỗi auth Google Maps
   useEffect(() => {
     window.gm_authFailure = () => {
-      // eslint-disable-next-line no-console
       console.error('Google Maps auth failed. Check API key, referrers, billing.');
     };
     return () => { delete window.gm_authFailure; };
@@ -28,21 +63,6 @@ const Routes = ({ isLoaded, loadError }) => {
     mapTypeControl: true,
     fullscreenControl: true
   };
-
-  const busRoutes = [
-    { id: '01', status: 'N/A', trackingId: 'TRK001', timestamp: new Date().toISOString(), latitude: 10.8231, longitude: 106.6297, speed: 25, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '02', status: 'N/A', trackingId: 'TRK002', timestamp: new Date().toISOString(), latitude: 10.8331, longitude: 106.6397, speed: 0,  isOnline: false, calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '03', status: 'N/A', trackingId: 'TRK003', timestamp: new Date().toISOString(), latitude: 10.8131, longitude: 106.6197, speed: 45, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '04', status: 'N/A', trackingId: 'TRK004', timestamp: new Date().toISOString(), latitude: 10.8431, longitude: 106.6497, speed: 15, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '05', status: 'N/A', trackingId: 'TRK005', timestamp: new Date().toISOString(), latitude: 10.8031, longitude: 106.6097, speed: 60, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '06', status: 'N/A', trackingId: 'TRK006', timestamp: new Date().toISOString(), latitude: 10.8531, longitude: 106.6597, speed: 0,  isOnline: false, calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '07', status: 'N/A', trackingId: 'TRK007', timestamp: new Date().toISOString(), latitude: 10.7931, longitude: 106.5997, speed: 35, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '08', status: 'N/A', trackingId: 'TRK008', timestamp: new Date().toISOString(), latitude: 10.8631, longitude: 106.6697, speed: 20, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '09', status: 'N/A', trackingId: 'TRK009', timestamp: new Date().toISOString(), latitude: 10.7831, longitude: 106.5897, speed: 0,  isOnline: false, calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '10', status: 'N/A', trackingId: 'TRK010', timestamp: new Date().toISOString(), latitude: 10.8731, longitude: 106.6797, speed: 40, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '11', status: 'N/A', trackingId: 'TRK011', timestamp: new Date().toISOString(), latitude: 10.7731, longitude: 106.5797, speed: 55, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} },
-    { id: '12', status: 'N/A', trackingId: 'TRK012', timestamp: new Date().toISOString(), latitude: 10.8831, longitude: 106.6897, speed: 10, isOnline: true,  calculateDelay: () => 'N/A', updateLocation: (lat,lng)=>{} }
-  ];
 
   const filteredRoutes = busRoutes.filter(route =>
     route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,7 +138,6 @@ const Routes = ({ isLoaded, loadError }) => {
               ))}
 
               {selectedBus && (
-                
                 <InfoWindow
                   position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}
                   onCloseClick={() => setSelectedBus(null)}
@@ -146,7 +165,16 @@ const Routes = ({ isLoaded, loadError }) => {
         </div>
 
         <div className="routes-list">
-          {filteredRoutes.length > 0 ? (
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Đang tải danh sách xe...</p>
+            </div>
+          ) : error ? (
+            <div className="error-state">
+              <p style={{ color: 'red' }}>{error}</p>
+            </div>
+          ) : filteredRoutes.length > 0 ? (
             filteredRoutes.map(route => (
               <div key={route.id} className="route-card">
                 <div className="route-header">
@@ -156,7 +184,7 @@ const Routes = ({ isLoaded, loadError }) => {
 
                 <div className="tracking-details">
                   <div className="tracking-item">
-                    <span className="tracking-label">Tracking ID</span>
+                    <span className="tracking-label">ID</span>
                     <span className="tracking-value">
                       <span className={`status-indicator ${getStatusClass(route.speed, route.isOnline)}`} />
                       {route.trackingId}
