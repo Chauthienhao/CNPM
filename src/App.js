@@ -1,7 +1,7 @@
 import './App.css';
 import LoginModal from './components/Authentication/LoginModal';  
 import SideBar from './LeftSideBar/SideBar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from './Header/Header';
 import Route from './Route/Route';
 import Dashboard from './Dashboard/Dashboard';
@@ -11,17 +11,34 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import Students from './Students/Student';
 import Taixe from './Taixe/Taixe';
 import { ROLE_CONFIGS } from './ApplicableObject';
+import { logout } from './services/api';
 
 function App() {
   const [activeMenu, setActiveMenu] = useState('schedule');
-  // cần khai báo state để theo dõi đăng nhập
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // Hardcode role để test 
-  const currentRole = 'admin'; 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentRole, setCurrentRole] = useState('admin');
+
+  const handleLoginSuccess = (user) => {
+    setIsLoggedIn(true);
+    setCurrentRole(user.role);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsLoggedIn(false);
+    setCurrentRole('admin');
+  };
   
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
   };
+
+  // Normalize URL to root 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
+  }, []);
   
   const renderContent = () => {
     switch (activeMenu) {
@@ -53,38 +70,18 @@ function App() {
   if (loadError) {
     return <div>Lỗi tải API Google Maps</div>;
   }
-  // 3. Tạo hàm xử lý khi đăng nhập thành công
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-  };
-  
-  if (loadError) {
-    return <div>Lỗi tải API Google Maps</div>;
-  }
 
-  // 4. KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP
-  // Nếu chưa đăng nhập (isLoggedIn là false)
   if (!isLoggedIn) {
-    return (
-      <div className="App">
-        <div className="Main-app">
-          {/* Hiển thị LoginModal và truyền hàm handleLoginSuccess vào */}
-          <LoginModal 
-            onLoginSuccess={handleLoginSuccess}
-            onClose={() => alert("Bạn phải đăng nhập để tiếp tục")} // Có thể thông báo
-            onOpenSignup={() => { /* Xử lý mở modal đăng ký */ }}
-          />
-        </div>
-      </div>
-    );
+    return <LoginModal onLoginSuccess={handleLoginSuccess} onClose={() => {}} onOpenSignup={() => {}} />;
   }
+
   return (
     <div className="App">
-      <Header />
+      <Header onLogout={handleLogout} />
       
       <div className="Main-app">
-        <SideBar 
-          activeMenu={activeMenu} 
+        <SideBar
+          activeMenu={activeMenu}
           onMenuClick={handleMenuClick}
           allowedMenuIds={ROLE_CONFIGS[currentRole]?.menus}
         />

@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getSchedules } from '../services/api';
 import './Schedule.css';
 
 const Schedule = () => {
   const [selectedTab, setSelectedTab] = useState('routes');
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [routeName, setRouteName] = useState('');
   const [driverId, setDriverId] = useState('');
   const [busId, setBusId] = useState('');
   const [studentId, setStudentId] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getSchedules();
+        if (mounted) setSchedules(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (mounted) setError('Không tải được lịch trình');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const handleSave = () => {
     console.log({ routeName, driverId, busId, studentId });
@@ -20,26 +39,24 @@ const Schedule = () => {
     setStudentId('');
   };
 
-  const scheduleData = {
-    'Thứ 2': [
-      { route: 'tuyến 01', time: '9:30 AM' },
-      { route: 'tuyến 02', time: '1:00 PM' },
-      { route: 'tuyến 03', time: '3:30 PM' }
-    ],
-    'Thứ 3': [
-      { route: 'tuyến 01', time: '7:30 AM' },
-      { route: 'tuyến 02', time: '8:30 AM' },
-      { route: 'tuyến 03', time: '3:30 PM' },
-      { route: 'tuyến 04', time: '5:30 PM' }
-    ],
-    'Thứ 4': [
-      { route: 'tuyến 01', time: '7:30 AM' },
-      { route: 'tuyến 02', time: '8:30 AM' }
-    ],
-    'Thứ 5': [{ route: 'tuyến 01', time: '7:30 AM' }],
-    'Thứ 6': [],
-    'Thứ 7': [{ route: 'tuyến 01', time: '8:30 AM' }]
+  // Nhóm lịch trình theo ngày trong tuần (demo - có thể customize)
+  const groupByDay = () => {
+    const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    const grouped = {};
+    days.forEach(d => { grouped[d] = []; });
+    
+    // Phân phối lịch trình vào các ngày (đơn giản: chia đều)
+    schedules.forEach((sch, idx) => {
+      const dayIdx = idx % 6;
+      grouped[days[dayIdx]].push({
+        route: sch.tuyen_duong || 'N/A',
+        time: sch.gio_xuat_phat || 'N/A'
+      });
+    });
+    return grouped;
   };
+
+  const scheduleData = groupByDay();
 
   const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 
@@ -49,51 +66,58 @@ const Schedule = () => {
         <div className="schedule-main">
           <h2 className="schedule-title">Quản lí lịch trình</h2>
 
-          <div className="tab-buttons">
-            <button
-              className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('routes')}
-            >
-              Tất cả tuyến đường
-            </button>
-            <button
-              className={`tab-btn ${selectedTab === 'monthly' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('monthly')}
-            >
-              Hàng tháng
-            </button>
-            <button
-              className={`tab-btn ${selectedTab === 'bus' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('bus')}
-            >
-              Tất cả xe buýt
-            </button>
-          </div>
+          {loading && <div style={{padding: 12}}>Đang tải...</div>}
+          {error && !loading && <div style={{color: 'red', padding: 12}}>{error}</div>}
 
-          <div className="calendar-wrapper">
-            <div className="schedule-grid">
-              <div className="day-headers">
-                {days.map((day) => (
-                  <div key={day} className="day-header">
-                    {day}
-                  </div>
-                ))}
+          {!loading && !error && (
+            <>
+              <div className="tab-buttons">
+                <button
+                  className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`}
+                  onClick={() => setSelectedTab('routes')}
+                >
+                  Tất cả tuyến đường
+                </button>
+                <button
+                  className={`tab-btn ${selectedTab === 'monthly' ? 'active' : ''}`}
+                  onClick={() => setSelectedTab('monthly')}
+                >
+                  Hàng tháng
+                </button>
+                <button
+                  className={`tab-btn ${selectedTab === 'bus' ? 'active' : ''}`}
+                  onClick={() => setSelectedTab('bus')}
+                >
+                  Tất cả xe buýt
+                </button>
               </div>
 
-              <div className="schedule-content">
-                {days.map((day) => (
-                  <div key={day} className="day-column">
-                    {scheduleData[day].map((item, index) => (
-                      <div key={index} className="schedule-item">
-                        <div className="route-name">{item.route}</div>
-                        <div className="route-time">{item.time}</div>
+              <div className="calendar-wrapper">
+                <div className="schedule-grid">
+                  <div className="day-headers">
+                    {days.map((day) => (
+                      <div key={day} className="day-header">
+                        {day}
                       </div>
                     ))}
                   </div>
-                ))}
+
+                  <div className="schedule-content">
+                    {days.map((day) => (
+                      <div key={day} className="day-column">
+                        {scheduleData[day].map((item, index) => (
+                          <div key={index} className="schedule-item">
+                            <div className="route-name">{item.route}</div>
+                            <div className="route-time">{item.time}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         <aside className="schedule-sidebar">

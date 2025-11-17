@@ -2,11 +2,13 @@
 import React, { useState } from "react";
 //import { NavLink } from "react-router-dom";
 import './LoginModal.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
     const [showpassword, setShowpassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+
     const handleClick = () => setShowpassword(!showpassword);
 
     const SubmitHandler = (e) => {
@@ -17,7 +19,14 @@ const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
 
         if (email === validEmail && password === validPassword) {
             alert("Login successful!");
-            onLoginSuccess(); // Close modal after successful login
+            // Set a dummy token so App detects logged-in state
+            localStorage.setItem('token', 'demo-token');
+            localStorage.setItem('userRole', 'admin');
+            localStorage.setItem('userName', 'Admin User');
+            localStorage.setItem('userEmail', email);
+            if (onLoginSuccess) {
+                onLoginSuccess({ role: 'admin', name: 'Admin User', email });
+            }
         } else {
             alert("Invalid email or password. Please try again.");
         }
@@ -80,7 +89,7 @@ const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
                             </button>
                         </div>
                         <div className="text-center mt-3">
-                            Don't have an account? <a onClick={(e) => {e.preventDefault(); onOpenSignup()}}>Sign up</a> 
+                            Don't have an account? <a href="#" onClick={(e) => {e.preventDefault(); onOpenSignup()}}>Sign up</a> 
                         </div>
                     </form>
                 </div>
