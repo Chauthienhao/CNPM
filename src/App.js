@@ -72,7 +72,11 @@ function App() {
   }
 
   if (!isLoggedIn) {
-    return <LoginModal onLoginSuccess={handleLoginSuccess} onClose={() => {}} onOpenSignup={() => {}} />;
+    return (
+      <div className="Main-app">
+        <LoginModal onLoginSuccess={handleLoginSuccess} onClose={() => {}} onOpenSignup={() => {}} />
+      </div>
+    );
   }
 
   return (
