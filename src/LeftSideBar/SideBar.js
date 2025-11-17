@@ -8,8 +8,8 @@ import studentIcon from '../Develop/student.png';
 import scheduleIcon from '../Develop/schedule.png';
 import notificationIcon from '../Develop/notification.png';
 
-const SideBar = ({ activeMenu, onMenuClick }) => {
-  const menuItems = [
+const SideBar = ({ activeMenu, onMenuClick, allowedMenuIds = null }) => {
+  const allMenuItems = [
     { id: 'dashboard', icon: dashboardIcon, label: 'Dashboard' },
     { id: 'route', icon: routeIcon, label: 'Tuyến đường' },
     { id: 'driver', icon: driverIcon, label: 'Tài xế' },
@@ -17,6 +17,11 @@ const SideBar = ({ activeMenu, onMenuClick }) => {
     { id: 'schedule', icon: scheduleIcon, label: 'Lịch trình' },
     { id: 'notification', icon: notificationIcon, label: 'Thông báo' }
   ];
+
+  // Lọc menu theo allowedMenuIds (nếu null thì hiện tất cả)
+  const menuItems = Array.isArray(allowedMenuIds)
+    ? allMenuItems.filter(item => allowedMenuIds.includes(item.id))
+    : allMenuItems;
 
   return (
     <div className="menu-sidebar">
