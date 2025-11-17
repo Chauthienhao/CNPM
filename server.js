@@ -9,6 +9,21 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+app.get('/bus-location' ,(req,res) => {
+  const query = `SELECT * FROM xebus`;
+
+  db.query(query, (err,results) => {
+    if (err){
+      console.error('Lỗi truy vấn vị trí xe buýt:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu xe buýt.' });
+    }
+    res.json({
+            data: results,
+            timestamp: new Date().toISOString()
+        });
+  });
+});
+
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 

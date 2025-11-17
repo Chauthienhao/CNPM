@@ -1,6 +1,6 @@
-/* Định nghĩa CSS Variables */
+
 :root {
-    /* Màu sắc ứng dụng */
+    
     --color-primary-dark: #2c3e50; 
     --color-header: #34495e;      /* Nền Card */
     --card-dark-lighter: #4a667b; /* Màu biểu đồ nền */
@@ -33,12 +33,8 @@
     flex-grow: 1;
 }
 
-
-/* ------------------------------------------- */
-/* KIỂU CHUNG */
-/* ------------------------------------------- */
 .schedule-card{
-    width: 270px;
+    width: 100%;
 }
 
 .card {
@@ -60,7 +56,6 @@
     padding-bottom: 5px;
 }
 
-/* --- BỐ CỤC HÀNG TRÊN (TOP ROW - Flexbox) --- */
 .dashboard-row-top {
     display: flex;
     gap: 20px;
@@ -123,7 +118,6 @@
     font-weight: bold; color: var(--color-green); font-size: 1.4em;
 }
 
-/* --- BỐ CỤC HÀNG DƯỚI (BOTTOM ROW - Grid) --- */
 .dashboard-row-bottom {
     display: grid;
     gap: 20px;
