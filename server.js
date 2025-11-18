@@ -66,6 +66,8 @@ app.get('/api/taixe', (req, res) => {
         res.json(results);
     });
 });
+
+// Thêm tài xế mới
 app.post('/api/taixe', (req, res) => {
     const { name, email, so_dien_thoai, status } = req.body;
 
@@ -99,32 +101,94 @@ app.post('/api/taixe', (req, res) => {
         });
     });
 });
+
+// Sửa thông tin tài xế
 app.put('/api/taixe/:id', (req, res) => {
     const { id } = req.params;
-    // Nhận status ở dạng 'active', 'busy', 'inactive' từ frontend
-    const { status } = req.body; 
+    
+    // Lấy dữ liệu từ body
+    const { name, email, so_dien_thoai, status } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!status || !['active', 'busy', 'inactive'].includes(status)) {
-        return res.status(400).json({ message: 'Trạng thái cung cấp không hợp lệ.' });
+    // --- Validation chung ---
+    
+    // Nếu status được cung cấp (dù là kịch bản nào), nó phải là tiếng Anh
+    if (status && !['active', 'busy', 'inactive'].includes(status)) {
+         return res.status(400).json({ 
+             message: `Trạng thái '${status}' cung cấp không hợp lệ. Phải là 'active', 'busy', hoặc 'inactive'.` 
+         });
+    }
+    // 2 trường hợp: cập nhật thông tin hoặc chỉ trạng thái 
+    if (name || email || so_dien_thoai) {
+        if (!name || !email || !so_dien_thoai || !status) {
+            return res.status(400).json({ 
+                message: 'Vui lòng cung cấp đầy đủ thông tin (tên, email, sđt, trạng thái tiếng Anh).' 
+            });
+        }
+        const query = 'UPDATE taixe SET ho_ten = ?, email = ?, so_dien_thoai = ?, status = ? WHERE id = ?';
+        const params = [name, email, so_dien_thoai, status, id];
+
+        db.query(query, params, (err, result) => {
+            if (err) {
+                console.error('Lỗi khi cập nhật (full):', err);
+                return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật.' });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: 'Không tìm thấy tài xế.' });
+            }
+            res.json({ message: `Cập nhật thông tin thành công cho ID: ${id}` });
+        });
+
+    } 
+    else if (status) {
+        
+        // 1. Validation (Đã kiểm tra ở trên)
+        
+        // 2. Query chỉ cập nhật status
+        const query = 'UPDATE taixe SET status = ? WHERE id = ?';
+        
+        db.query(query, [status, id], (err, result) => {
+             if (err) {
+                console.error('Lỗi khi cập nhật (status only):', err);
+                return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật trạng thái.' });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: 'Không tìm thấy tài xế.' });
+            }
+            res.json({ message: `Cập nhật trạng thái thành công cho ID: ${id}` });
+        });
+
+    } 
+    else {
+        return res.status(400).json({ message: 'Không có dữ liệu nào được cung cấp để cập nhật.' });
+    }
+});
+    
+// Xoá tài xế
+app.delete('/api/taixe/:id', (req, res) => {
+    const { id } = req.params;
+
+    if (!id) {
+        return res.status(400).json({ message: 'Vui lòng cung cấp ID tài xế.' });
     }
 
-    const query = 'UPDATE taixe SET status = ? WHERE id = ?';
+    // Câu query DELETE
+    const query = 'DELETE FROM taixe WHERE id = ?';
 
-    db.query(query, [status, id], (err, result) => {
+    db.query(query, [id], (err, result) => {
         if (err) {
-            console.error('Lỗi khi cập nhật trạng thái:', err);
-            return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật.' });
+            console.error('Lỗi khi xóa tài xế:', err);
+            return res.status(500).json({ message: 'Lỗi máy chủ khi xóa.' });
         }
 
+        // Kiểm tra xem có dòng nào bị ảnh hưởng (bị xóa) không
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Không tìm thấy tài xế.' });
+            return res.status(404).json({ message: 'Không tìm thấy tài xế để xóa.' });
         }
 
-        res.json({ message: `Cập nhật trạng thái thành công cho ID: ${id}` });
+        // Thành công
+        res.json({ message: `Đã xóa thành công tài xế có ID: ${id}` });
     });
 });
-
 app.listen(PORT, () => {
   console.log(`Máy chủ đang chạy trên http://localhost:${PORT}`);
 });
