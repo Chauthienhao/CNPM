@@ -12,14 +12,14 @@ h1{
 }
 .search-form{
     margin-left: 5vw;
-.add-btn{
-    border-radius: 4vw;
-    padding: 2vh;
-    background-color: #007bff;
-    color: white;
-    font-weight: bold;
-    margin:1vh;
-}
+    .add-btn{
+        border-radius: 4vw;
+        padding: 2vh;
+        background-color: #007bff;
+        color: white;
+        font-weight: bold;
+        margin:1vh;
+    }
 
 }
 .table-form{
