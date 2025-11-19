@@ -144,35 +144,37 @@ END;
 
 
 
+-- 4️⃣ Trigger tự động thông báo khi học sinh chưa lên xe đúng giờ
+DELIMITER //
+
+DELIMITER //
+
 CREATE TRIGGER tripstudent_after_insert
-
 AFTER INSERT ON tripstudent
-
 FOR EACH ROW
-
 BEGIN
+    DECLARE gio_xuat DATETIME;
 
-    DECLARE current_time DATETIME;
-
-    SET current_time = NOW();
+    -- Lấy giờ xuất phát từ bảng trip
+    SELECT t.gio_xuat_phat 
+    INTO gio_xuat
+    FROM trip t
+    WHERE t.id = NEW.trip_id;
 
     -- Nếu học sinh chưa lên xe mà đã quá giờ xuất phát 5 phút
-
-    IF NEW.thoi_diem_len IS NULL AND NEW.thoi_diem_xuong IS NULL THEN
-
+    IF NEW.thoi_diem_len IS NULL 
+       AND NEW.thoi_diem_xuong IS NULL
+       AND NOW() > DATE_ADD(gio_xuat, INTERVAL 5 MINUTE) THEN
         INSERT INTO thongbao(phu_huynh_id, hoc_sinh_id, noi_dung)
-
-        SELECT hocsinh.phu_huynh_id, hocsinh.id, CONCAT('Học sinh ', hocsinh.ho_ten, ' chưa lên xe đúng giờ.')
-
-        FROM hocsinh
-
-        WHERE hocsinh.id = NEW.hoc_sinh_id;
-
+        SELECT h.phu_huynh_id, h.id, 
+               CONCAT('Học sinh ', h.ho_ten, ' chưa lên xe đúng giờ.')
+        FROM hocsinh h
+        WHERE h.id = NEW.hoc_sinh_id;
     END IF;
-
 END;
-
 //
+
+DELIMITER ;
 
 
 

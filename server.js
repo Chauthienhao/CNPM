@@ -86,22 +86,18 @@ app.get('/routes/:id/stops', (req, res) => {
 
 // Endpoint lấy lịch trình (join nhiều bảng)
 app.get('/schedules', (req, res) => {
-  const query = `SELECT lt.id,
-                        td.ten_tuyen_duong,
-                        tx.ho_ten AS tai_xe,
-                        xb.bien_so_xe,
-                        hs.ho_ten AS hoc_sinh,
-                        don.ten_diem_dung AS diem_don,
-                        den.ten_diem_dung AS diem_den,
-                        lt.gio_xuat_phat
-                 FROM LichTrinh lt
-                 JOIN TuyenDuong td ON lt.tuyen_duong_id = td.id
-                 JOIN TaiXe tx ON lt.tai_xe_id = tx.id
-                 JOIN XeBus xb ON lt.xe_bus_id = xb.id
-                 JOIN HocSinh hs ON lt.hoc_sinh_id = hs.id
-                 JOIN DiemDung don ON lt.diem_don_id = don.id
-                 JOIN DiemDung den ON lt.diem_den_id = den.id
-                 ORDER BY lt.gio_xuat_phat`;
+    const query = `SELECT t.id,
+           td.ten_tuyen_duong,
+           tx.ho_ten AS tai_xe,
+           xb.bien_so_xe,
+           t.ngay,
+           t.gio_xuat_phat,
+           t.thu
+         FROM trip t
+         JOIN tuyenduong td ON t.tuyen_duong_id = td.id
+         JOIN taixe tx ON t.tai_xe_id = tx.id
+         JOIN xebus xb ON t.xe_bus_id = xb.id
+         ORDER BY t.gio_xuat_phat`;
   db.query(query, (err, results) => {
     if (err) {
       console.error('Lỗi truy vấn schedules:', err);
@@ -130,19 +126,18 @@ app.post('/schedules', (req, res) => {
     tuyen_duong_id,
     tai_xe_id,
     xe_bus_id,
-    hoc_sinh_id,
-    diem_don_id,
-    diem_den_id,
-    gio_xuat_phat
+    ngay,
+    gio_xuat_phat,
+    thu
   } = req.body;
 
-  if (!tuyen_duong_id || !tai_xe_id || !xe_bus_id || !hoc_sinh_id || !diem_don_id || !diem_den_id || !gio_xuat_phat) {
+  if (!tuyen_duong_id || !tai_xe_id || !xe_bus_id || !ngay || !gio_xuat_phat || !thu) {
     return res.status(400).json({ message: 'Thiếu thông tin lịch trình.' });
   }
 
-  const query = `INSERT INTO LichTrinh (tuyen_duong_id, tai_xe_id, xe_bus_id, hoc_sinh_id, diem_don_id, diem_den_id, gio_xuat_phat)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
-  db.query(query, [tuyen_duong_id, tai_xe_id, xe_bus_id, hoc_sinh_id, diem_don_id, diem_den_id, gio_xuat_phat], (err, result) => {
+  const query = `INSERT INTO trip (tuyen_duong_id, tai_xe_id, xe_bus_id, ngay, gio_xuat_phat, thu)
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+  db.query(query, [tuyen_duong_id, tai_xe_id, xe_bus_id, ngay, gio_xuat_phat, thu], (err, result) => {
     if (err) {
       console.error('Lỗi tạo lịch trình:', err);
       return res.status(500).json({ message: 'Lỗi máy chủ khi tạo lịch trình.' });

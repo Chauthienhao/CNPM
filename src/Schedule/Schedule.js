@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Schedule.css';
 
 const Schedule = () => {
+  // State cho tab, form, và dữ liệu từ DB
   const [selectedTab, setSelectedTab] = useState('routes');
   const [routeName, setRouteName] = useState('');
   const [driverId, setDriverId] = useState('');
@@ -15,6 +16,7 @@ const Schedule = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Fetch dữ liệu từ API backend
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -24,14 +26,11 @@ const Schedule = () => {
           fetch('http://localhost:5000/buses'),
           fetch('http://localhost:5000/students')
         ]);
-        
         if (!schedulesRes.ok) throw new Error(`HTTP ${schedulesRes.status}`);
-        
         const schedulesData = await schedulesRes.json();
         const driversData = driversRes.ok ? await driversRes.json() : [];
         const busesData = busesRes.ok ? await busesRes.json() : [];
         const studentsData = studentsRes.ok ? await studentsRes.json() : [];
-        
         setSchedules(schedulesData);
         setDrivers(driversData);
         setBuses(busesData);
@@ -68,9 +67,18 @@ const Schedule = () => {
 
   // Nhóm lịch trình theo ngày trong tuần (giả định phân bổ đều)
   const groupByWeekday = () => {
+    // Nhóm lịch trình theo thứ (dựa vào trường thu trong DB)
     const days = [[], [], [], [], [], []]; // Thứ 2-7
-    schedules.forEach((sch, idx) => {
-      days[idx % 6].push(sch);
+    schedules.forEach((sch) => {
+      switch (sch.thu) {
+        case '2': days[0].push(sch); break;
+        case '3': days[1].push(sch); break;
+        case '4': days[2].push(sch); break;
+        case '5': days[3].push(sch); break;
+        case '6': days[4].push(sch); break;
+        case '7': days[5].push(sch); break;
+        default: break;
+      }
     });
     return days;
   };
@@ -83,28 +91,20 @@ const Schedule = () => {
       <div className="schedule-container">
         <div className="schedule-main">
           <h2 className="schedule-title">Quản lí lịch trình</h2>
-
           <div className="tab-buttons">
             <button 
               className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`} 
               onClick={() => setSelectedTab('routes')}
-            >
-              Tất cả tuyến đường
-            </button>
+            >Tất cả tuyến đường</button>
             <button 
               className={`tab-btn ${selectedTab === 'monthly' ? 'active' : ''}`} 
               onClick={() => setSelectedTab('monthly')}
-            >
-              Hàng tháng
-            </button>
+            >Hàng tháng</button>
             <button 
               className={`tab-btn ${selectedTab === 'buses' ? 'active' : ''}`} 
               onClick={() => setSelectedTab('buses')}
-            >
-              Tất cả xe buýt
-            </button>
+            >Tất cả xe buýt</button>
           </div>
-
           {loading ? (
             <div className="loading-state">Đang tải dữ liệu...</div>
           ) : error ? (
@@ -127,6 +127,8 @@ const Schedule = () => {
                       >
                         <div className="route-name">{item.ten_tuyen_duong}</div>
                         <div className="route-time">{formatTime(item.gio_xuat_phat)}</div>
+                        <div className="route-driver">Tài xế: {item.tai_xe}</div>
+                        <div className="route-bus">Xe: {item.bien_so_xe}</div>
                       </div>
                     ))}
                   </div>
@@ -135,16 +137,13 @@ const Schedule = () => {
             </div>
           )}
         </div>
-
         <aside className="schedule-sidebar">
           <div className="sidebar-section">
             <h3>Chi tiết:</h3>
-
             <label>Tên tuyến đường</label>
             <div className="readonly-field">
               {routeName || 'Chọn tuyến từ bản đồ'}
             </div>
-
             <label>Tài xế:</label>
             <select
               className="dropdown"
@@ -156,7 +155,6 @@ const Schedule = () => {
                 <option key={driver.id} value={driver.id}>{driver.ho_ten}</option>
               ))}
             </select>
-
             <label>Xe buýt:</label>
             <select
               className="dropdown"
@@ -168,27 +166,21 @@ const Schedule = () => {
                 <option key={bus.id} value={bus.id}>{bus.bien_so_xe}</option>
               ))}
             </select>
-
             <label>Danh sách học sinh:</label>
             <select
               className="dropdown"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
             >
-              <option value="">Nguyễn Văn A</option>
+              <option value="">Chọn học sinh</option>
               {students.map(student => (
                 <option key={student.id} value={student.id}>{student.ho_ten}</option>
               ))}
             </select>
           </div>
-
           <div className="sidebar-buttons">
-            <button className="btn-save" onClick={handleSave}>
-              Lưu
-            </button>
-            <button className="btn-cancel" onClick={handleCancel}>
-              Hủy
-            </button>
+            <button className="btn-save" onClick={handleSave}>Lưu</button>
+            <button className="btn-cancel" onClick={handleCancel}>Hủy</button>
           </div>
         </aside>
       </div>
