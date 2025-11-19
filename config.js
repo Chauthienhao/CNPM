@@ -4,7 +4,7 @@ const db = mysql.createConnection({
   host: 'localhost',
   user: 'root', // Thay đổi nếu cần
   password: '19092005', // Thay đổi nếu cần
-  database: 'SmartSchoolBus'
+  database: 'SmartSchoolBusTest'
 });
 
 db.connect((err) => {
