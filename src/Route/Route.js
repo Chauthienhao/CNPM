@@ -28,87 +28,54 @@ const Routes = ({ isLoaded, loadError }) => {
     // #region useEffect - Fetch dữ liệu
     // Load xe buýt từ DB (XeBus)
     useEffect(() => {
-        // Fetch directions for each route
-        const fetchDirections = async () => {
-            if (!window.google || !window.google.maps) return;
-            const directionsService = new window.google.maps.DirectionsService();
-            const newDirections = {};
-            for (const bus of busRoutes) {
-                const stops = routeStops[bus.tuyen_duong_id] || [];
-                if (stops.length < 2) continue;
-                const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
-                    location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
-                    stopover: true
-                }));
-                const origin = { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) };
-                const destination = { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) };
-                await new Promise((resolve) => {
-                    directionsService.route({
-                        origin,
-                        destination,
-                        waypoints,
-                        travelMode: window.google.maps.TravelMode.DRIVING
-                    }, (result, status) => {
-                        if (status === 'OK') {
-                            newDirections[bus.id] = result;
-                        }
-                        resolve();
-                    });
-                });
+      // Fetch danh sách xe buýt từ API backend
+      const fetchBuses = async () => {
+        try {
+          if (loading) setLoading(false);
+          console.log('[Route] Fetching buses from API...');
+          const res = await fetch('http://localhost:5000/buses');
+          if (!res.ok) throw new Error('Network response was not ok');
+          const data = await res.json();
+          console.log('[Route] Raw bus data:', data);
+          const formattedBuses = data.map((bus, idx) => ({
+            id: String(bus.id).padStart(2, '0'),
+            status: 'N/A',
+            trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
+            timestamp: new Date().toISOString(),
+            latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
+            longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
+            speed: bus.speed != null ? bus.speed : 0,
+            isOnline: bus.speed != null,
+            tuyen_duong_id: bus.tuyen_duong_id,
+            calculateDelay: () => 'N/A',
+            updateLocation: () => {}
+          }));
+          console.log('[Route] Formatted buses:', formattedBuses);
+          setBusRoutes(formattedBuses);
+          // Fetch stops từ API routes
+          const routesRes = await fetch('http://localhost:5000/routes');
+          if (routesRes.ok) {
+            const routesData = await routesRes.json();
+            const stopsData = {};
+            for (const route of routesData) {
+              const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
+              if (stopsRes.ok) {
+                stopsData[route.id] = await stopsRes.json();
+              }
             }
-            setDirections(newDirections);
-        };
-        if (isLoaded) {
-            fetchDirections();
+            setRouteStops(stopsData);
+          }
+          setError(null);
+        } catch (err) {
+          console.error('Lỗi tải dữ liệu xe:', err);
+          setError('Không thể tải danh sách xe');
+          setBusRoutes([]);
+        } finally {
+          setLoading(false);
         }
-        // Fetch danh sách xe buýt từ API backend
-        const fetchBuses = async () => {
-            try {
-                setLoading(true);
-                console.log('[Route] Fetching buses from API...');
-                const res = await fetch('http://localhost:5000/buses');
-                if (!res.ok) throw new Error('Network response was not ok');
-                const data = await res.json();
-                console.log('[Route] Raw bus data:', data);
-                const formattedBuses = data.map((bus, idx) => ({
-                    id: String(bus.id).padStart(2, '0'),
-                    status: 'N/A',
-                    trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
-                    timestamp: new Date().toISOString(),
-                    latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
-                    longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
-                    speed: bus.speed != null ? bus.speed : 0,
-                    isOnline: bus.speed != null,
-                    tuyen_duong_id: bus.tuyen_duong_id,
-                    calculateDelay: () => 'N/A',
-                    updateLocation: () => {}
-                }));
-                console.log('[Route] Formatted buses:', formattedBuses);
-                setBusRoutes(formattedBuses);
-                // Fetch stops từ API routes
-                const routesRes = await fetch('http://localhost:5000/routes');
-                if (routesRes.ok) {
-                    const routesData = await routesRes.json();
-                    const stopsData = {};
-                    for (const route of routesData) {
-                        const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
-                        if (stopsRes.ok) {
-                            stopsData[route.id] = await stopsRes.json();
-                        }
-                    }
-                    setRouteStops(stopsData);
-                }
-                setError(null);
-            } catch (err) {
-                console.error('Lỗi tải dữ liệu xe:', err);
-                setError('Không thể tải danh sách xe');
-                setBusRoutes([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchBuses();
-    }, []);
+      };
+      fetchBuses();
+    }, [isLoaded, loading]);
     // #endregion
 
     // #region Xử lý Google Maps
@@ -126,37 +93,34 @@ const Routes = ({ isLoaded, loadError }) => {
 
     // #region useEffect DirectionsRenderer
     useEffect(() => {
-        if (!isLoaded) return;
-        if (!window.google || !window.google.maps) return;
-        if (!Object.keys(routeStops).length) return;
-        const directionsService = new window.google.maps.DirectionsService();
-        const newDirections = {};
-        (async () => {
-            for (const bus of busRoutes) {
-                const stops = routeStops[bus.tuyen_duong_id] || [];
-                if (stops.length < 2) continue;
-                const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
-                    location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
-                    stopover: true
-                }));
-                const origin = { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) };
-                const destination = { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) };
-                await new Promise((resolve) => {
-                    directionsService.route({
-                        origin,
-                        destination,
-                        waypoints,
-                        travelMode: window.google.maps.TravelMode.DRIVING
-                    }, (result, status) => {
-                        if (status === 'OK') {
-                            newDirections[bus.id] = result;
-                        }
-                        resolve();
-                    });
-                });
-            }
-            setDirections(newDirections);
-        })();
+      if (!isLoaded) return;
+      if (!busRoutes.length) return;
+      if (!Object.keys(routeStops).length) return;
+      if (!window.google || !window.google.maps) return;
+      const directionsService = new window.google.maps.DirectionsService();
+      const newDirections = {};
+      (async () => {
+        for (const bus of busRoutes) {
+          const stops = routeStops[bus.tuyen_duong_id] || [];
+          if (stops.length < 2) continue;
+          const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
+            location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
+            stopover: true
+          }));
+          await new Promise(resolve => {
+            directionsService.route({
+              origin: { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) },
+              destination: { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) },
+              waypoints,
+              travelMode: window.google.maps.TravelMode.DRIVING
+            }, (result, status) => {
+              if (status === 'OK') newDirections[bus.id] = result;
+              resolve();
+            });
+          });
+        }
+        setDirections(newDirections);
+      })();
     }, [isLoaded, busRoutes, routeStops]);
     // #endregion
 
@@ -255,6 +219,7 @@ const Routes = ({ isLoaded, loadError }) => {
                         >
                             {/* Vẽ đường đi thực tế bằng DirectionsRenderer cho từng tuyến xe */}
                             {busRoutes.map((bus) => (
+                                
                                 directions[bus.id] ? (
                                     <DirectionsRenderer
                                         key={`directions-${bus.id}`}
@@ -266,38 +231,49 @@ const Routes = ({ isLoaded, loadError }) => {
 
                             {/* Hiển thị marker vị trí xe, điểm đón, điểm đến cho từng tuyến */}
                             {busRoutes.map((bus) => (
-                                (() => {
-                                    const markers = [];
+                              (() => {
+                                const markers = [];
+                                markers.push(
+                                  <Marker
+                                    key={bus.id}
+                                    position={{ lat: bus.latitude, lng: bus.longitude }}
+                                    icon={getMarkerIcon(bus.speed, bus.isOnline)}
+                                    onClick={() => setSelectedBus(bus)}
+                                    title={`Xe ${bus.id}`}
+                                  />
+                                );
+                                const stops = routeStops[bus.tuyen_duong_id] || [];
+                                if (stops.length >= 2) {
+                                  const firstStop = stops[0];
+                                  const lastStop = stops[stops.length - 1];
+                                  markers.push(
+                                    <Marker
+                                      key={`pickup-${bus.id}`}
+                                      position={{ lat: Number(firstStop.latitude), lng: Number(firstStop.longitude) }}
+                                      icon={'http://maps.google.com/mapfiles/ms/icons/green-dot.png'}
+                                      title={`Điểm đón: ${firstStop.ten_diem_dung}`}
+                                    />,
+                                    <Marker
+                                      key={`dropoff-${bus.id}`}
+                                      position={{ lat: Number(lastStop.latitude), lng: Number(lastStop.longitude) }}
+                                      icon={'http://maps.google.com/mapfiles/ms/icons/red-dot.png'}
+                                      title={`Điểm đến: ${lastStop.ten_diem_dung}`}
+                                    />
+                                  );
+                                  // Thêm marker cho các điểm dừng trung gian (màu xanh dương)
+                                  stops.slice(1, stops.length - 1).forEach((stop, index) => {
                                     markers.push(
-                                        <Marker
-                                            key={bus.id}
-                                            position={{ lat: bus.latitude, lng: bus.longitude }}
-                                            icon={getMarkerIcon(bus.speed, bus.isOnline)}
-                                            onClick={() => setSelectedBus(bus)}
-                                            title={`Xe ${bus.id}`}
-                                        />
+                                      <Marker
+                                        key={`midstop-${bus.id}-${index}`}
+                                        position={{ lat: Number(stop.latitude), lng: Number(stop.longitude) }}
+                                        icon={'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'}
+                                        title={`Điểm dừng: ${stop.ten_diem_dung}`}
+                                      />
                                     );
-                                    const stops = routeStops[bus.tuyen_duong_id] || [];
-                                    if (stops.length >= 2) {
-                                        const firstStop = stops[0];
-                                        const lastStop = stops[stops.length - 1];
-                                        markers.push(
-                                            <Marker
-                                                key={`pickup-${bus.id}`}
-                                                position={{ lat: Number(firstStop.latitude), lng: Number(firstStop.longitude) }}
-                                                icon={'http://maps.google.com/mapfiles/ms/icons/green-dot.png'}
-                                                title={`Điểm đón: ${firstStop.ten_diem_dung}`}
-                                            />,
-                                            <Marker
-                                                key={`dropoff-${bus.id}`}
-                                                position={{ lat: Number(lastStop.latitude), lng: Number(lastStop.longitude) }}
-                                                icon={'http://maps.google.com/mapfiles/ms/icons/red-dot.png'}
-                                                title={`Điểm đến: ${lastStop.ten_diem_dung}`}
-                                            />
-                                        );
-                                    }
-                                    return markers;
-                                })()
+                                  });
+                                }
+                                return markers;
+                              })()
                             ))}
 
                             {/* InfoWindow hiển thị thông tin xe khi click marker hoặc bấm HIỂN THỊ */}
