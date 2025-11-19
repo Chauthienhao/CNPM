@@ -92,36 +92,56 @@ const Routes = ({ isLoaded, loadError }) => {
     // #endregion
 
     // #region useEffect DirectionsRenderer
-    useEffect(() => {
-      if (!isLoaded) return;
-      if (!busRoutes.length) return;
-      if (!Object.keys(routeStops).length) return;
-      if (!window.google || !window.google.maps) return;
-      const directionsService = new window.google.maps.DirectionsService();
-      const newDirections = {};
-      (async () => {
-        for (const bus of busRoutes) {
-          const stops = routeStops[bus.tuyen_duong_id] || [];
-          if (stops.length < 2) continue;
-          const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
-            location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
-            stopover: true
-          }));
-          await new Promise(resolve => {
-            directionsService.route({
-              origin: { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) },
-              destination: { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) },
-              waypoints,
-              travelMode: window.google.maps.TravelMode.DRIVING
-            }, (result, status) => {
-              if (status === 'OK') newDirections[bus.id] = result;
-              resolve();
-            });
-          });
-        }
-        setDirections(newDirections);
-      })();
-    }, [isLoaded, busRoutes, routeStops]);
+    // #region useEffect DirectionsRenderer - Đã sửa lỗi
+        useEffect(() => {
+          if (!isLoaded) return;
+          if (!busRoutes.length) return;
+          if (!Object.keys(routeStops).length) return;
+          if (!window.google || !window.google.maps) return;
+
+          const directionsService = new window.google.maps.DirectionsService();
+          const newDirections = {};
+
+          const calculateDirections = async () => {
+            console.log('[Route] Bắt đầu tính toán Directions cho', busRoutes.length, 'xe...');
+            for (const bus of busRoutes) {
+              const stops = routeStops[bus.tuyen_duong_id] || [];
+              // Kiểm tra dữ liệu đầu vào
+              if (stops.length < 2) {
+                console.warn(`[Route] Xe ${bus.id}: Không đủ điểm dừng (cần >= 2, hiện có ${stops.length})`);
+                continue;
+              }
+              // Tạo Waypoints (bỏ điểm đầu và điểm cuối)
+              const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
+                location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
+                stopover: true
+              }));
+              // Gọi API
+              await new Promise(resolve => {
+                directionsService.route({
+                  origin: { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) },
+                  destination: { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) },
+                  waypoints: waypoints,
+                  travelMode: window.google.maps.TravelMode.DRIVING,
+                  optimizeWaypoints: false // QUAN TRỌNG: Giữ đúng thứ tự điểm dừng
+                }, (result, status) => {
+                  if (status === 'OK') {
+                    newDirections[bus.id] = result;
+                    console.log(`[Route] Xe ${bus.id}: Tính toán thành công.`);
+                  } else {
+                    console.error(`[Route] Xe ${bus.id}: Lỗi tính toán - ${status}`);
+                  }
+                  // Delay nhẹ để tránh hit rate limit (nếu cần thiết)
+                  setTimeout(resolve, 200); 
+                });
+              });
+            }
+            console.log('[Route] Hoàn tất tính toán. Cập nhật state directions.', Object.keys(newDirections).length, 'route(s) found.');
+            setDirections(newDirections);
+          };
+          calculateDirections();
+        }, [isLoaded, busRoutes, routeStops]);
+    // #endregion
     // #endregion
 
     // #region Tọa độ & options bản đồ

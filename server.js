@@ -156,7 +156,7 @@ app.get('/students', (req, res) => {
   });
 });
 
-// ==================== GOOGLE MAPS GEOCODING ====================
+// GOOGLE MAPS GEOCODING 
 
 // Endpoint reverse geocoding: lat/lng -> tên địa điểm
 app.post('/geocode/reverse', async (req, res) => {
