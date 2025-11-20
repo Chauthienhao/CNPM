@@ -156,6 +156,22 @@ const Routes = ({ isLoaded, loadError }) => {
     // #endregion
 
     // #region Hàm phụ trợ
+    // Lấy thời gian đến dự kiến từ Directions API
+    function getEtaFromDirections(directions) {
+      if (!directions || !directions.routes || !directions.routes[0] || !directions.routes[0].legs) return 'N/A';
+      const legs = directions.routes[0].legs;
+      let totalDuration = 0;
+      legs.forEach(leg => {
+        if (leg.duration && leg.duration.value) {
+          totalDuration += leg.duration.value; // giây
+        }
+      });
+      if (totalDuration > 0) {
+        const minutes = Math.round(totalDuration / 60);
+        return `${minutes} phút`;
+      }
+      return 'N/A';
+    }
     const filteredRoutes = busRoutes.filter(route =>
         route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         route.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -339,10 +355,12 @@ const Routes = ({ isLoaded, loadError }) => {
                     const stops = routeStops[route.tuyen_duong_id] || [];
                     const firstStop = stops[0];
                     const lastStop = stops[stops.length - 1];
+                    // Lấy directions cho xe này
+                    const eta = getEtaFromDirections(directions[route.id]);
                     return (
                       <div key={route.id} className="route-card">
                         <div className="route-header">
-                          <span className="route-time">Thời gian đến: {route.status}</span>
+                          <span className="route-time">Thời gian đến: {eta}</span>
                           <span className="route-id">XE: {route.id}</span>
                         </div>
                         <div className="tracking-details">
