@@ -123,7 +123,16 @@ const Schedule = () => {
                       <div 
                         key={item.id} 
                         className="schedule-item"
-                        onClick={() => setRouteName(item.ten_tuyen_duong)}
+                        onClick={() => {
+                          setRouteName(item.ten_tuyen_duong);
+                          // Tìm id tài xế từ danh sách drivers dựa vào tên
+                          const driver = drivers.find(d => d.ho_ten === item.tai_xe);
+                          setDriverId(driver ? driver.id : '');
+                          // Tìm id xe buýt từ danh sách buses dựa vào biển số
+                          const bus = buses.find(b => b.bien_so_xe === item.bien_so_xe);
+                          setBusId(bus ? bus.id : '');
+                          setStudentId(item.student_id || '');
+                        }}
                       >
                         <div className="route-name">{item.ten_tuyen_duong}</div>
                         <div className="route-time">{formatTime(item.gio_xuat_phat)}</div>
