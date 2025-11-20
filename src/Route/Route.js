@@ -1,29 +1,103 @@
-// #region Tổng quan file Route.js
-// Chức năng: Hiển thị bản đồ Google Maps, các tuyến xe buýt, marker vị trí xe, điểm đón/điểm đến, vẽ đường đi thực tế bằng Directions API
-// Marker màu xanh lá: Điểm đón (đầu tuyến)
-// Marker màu đỏ: Điểm đến (cuối tuyến)
-// Marker màu vàng/xanh lá/đỏ: Vị trí hiện tại của xe buýt (tùy trạng thái)
-// Đường đi thực tế: vẽ bằng DirectionsRenderer (Google Directions API)
-// #endregion
-
+import { useRef } from 'react';
 import React, { useEffect, useState } from 'react';
-import { GoogleMap, Marker, InfoWindow, DirectionsRenderer } from '@react-google-maps/api';
 import './Routes.css';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import 'leaflet-routing-machine';
+// Component Routing sử dụng leaflet-routing-machine
+function Routing({ stops }) {
+    const map = useMap();
+    const routingControlRef = useRef(null);
+
+    useEffect(() => {
+        // Cleanup old routing control if exists
+        if (routingControlRef.current) {
+            try {
+                if (routingControlRef.current._map) {
+                    routingControlRef.current._map.removeControl(routingControlRef.current);
+                }
+            } catch (e) {
+                // ignore leaflet internal errors
+            }
+            routingControlRef.current = null;
+        }
+
+        if (!map || stops.length < 2) return;
+
+        const waypoints = stops.map(stop => L.latLng(Number(stop.latitude), Number(stop.longitude)));
+        const routingControl = L.Routing.control({
+            waypoints,
+            lineOptions: {
+                styles: [{ color: '#007bff', weight: 4, opacity: 0.8 }]
+            },
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: false,
+            show: false
+        }).addTo(map);
+
+        routingControlRef.current = routingControl;
+
+        return () => {
+            if (routingControlRef.current) {
+                try {
+                    if (routingControlRef.current._map) {
+                        routingControlRef.current._map.removeControl(routingControlRef.current);
+                    }
+                } catch (e) {
+                    // ignore leaflet internal errors
+                }
+                routingControlRef.current = null;
+            }
+        };
+    }, [map, stops]);
+
+    return null;
+}
+
+// Custom marker icons giống Google Maps
+const greenIcon = new L.Icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
+const redIcon = new L.Icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
+const yellowIcon = new L.Icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
+const blueIcon = new L.Icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
 
 // #region Component chính: Routes
 // Props: isLoaded (Google Maps đã load), loadError (lỗi khi load Maps)
 // #endregion
 const Routes = ({ isLoaded, loadError }) => {
     // #region State chính
-    const [directions, setDirections] = useState({}); // Lưu dữ liệu route thực tế cho từng xe
+    // const [directions, setDirections] = useState({}); // Sẽ chuyển sang logic của Leaflet
     const [searchTerm, setSearchTerm] = useState(''); // Từ khóa tìm kiếm xe
     const [selectedBus, setSelectedBus] = useState(null); // Xe đang được chọn để hiển thị InfoWindow
-    const [map, setMap] = useState(null); // Đối tượng Google Map
+    const [selectedRouteId, setSelectedRouteId] = useState(null); // Tuyến đang được routing
     const [busRoutes, setBusRoutes] = useState([]); // Danh sách xe buýt
     const [routeStops, setRouteStops] = useState({}); // Lưu các điểm dừng của từng tuyến
     const [loading, setLoading] = useState(true); // Trạng thái loading
     const [error, setError] = useState(null); // Lưu lỗi
-    // #endregion
+    const markerRefs = useRef({});
+    // ...existing code...
 
     // #region useEffect - Fetch dữ liệu
     // Load xe buýt từ DB (XeBus)
@@ -91,68 +165,13 @@ const Routes = ({ isLoaded, loadError }) => {
     const mapContainerStyle = { width: '100%', height: '650px', borderRadius: '8px' };
     // #endregion
 
-    // #region useEffect DirectionsRenderer
-    // #region useEffect DirectionsRenderer - Đã sửa lỗi
-        useEffect(() => {
-          if (!isLoaded) return;
-          if (!busRoutes.length) return;
-          if (!Object.keys(routeStops).length) return;
-          if (!window.google || !window.google.maps) return;
-
-          const directionsService = new window.google.maps.DirectionsService();
-          const newDirections = {};
-
-          const calculateDirections = async () => {
-            console.log('[Route] Bắt đầu tính toán Directions cho', busRoutes.length, 'xe...');
-            for (const bus of busRoutes) {
-              const stops = routeStops[bus.tuyen_duong_id] || [];
-              // Kiểm tra dữ liệu đầu vào
-              if (stops.length < 2) {
-                console.warn(`[Route] Xe ${bus.id}: Không đủ điểm dừng (cần >= 2, hiện có ${stops.length})`);
-                continue;
-              }
-              // Tạo Waypoints (bỏ điểm đầu và điểm cuối)
-              const waypoints = stops.slice(1, stops.length - 1).map(stop => ({
-                location: { lat: Number(stop.latitude), lng: Number(stop.longitude) },
-                stopover: true
-              }));
-              // Gọi API
-              await new Promise(resolve => {
-                directionsService.route({
-                  origin: { lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) },
-                  destination: { lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) },
-                  waypoints: waypoints,
-                  travelMode: window.google.maps.TravelMode.DRIVING,
-                  optimizeWaypoints: false // QUAN TRỌNG: Giữ đúng thứ tự điểm dừng
-                }, (result, status) => {
-                  if (status === 'OK') {
-                    newDirections[bus.id] = result;
-                    console.log(`[Route] Xe ${bus.id}: Tính toán thành công.`);
-                  } else {
-                    console.error(`[Route] Xe ${bus.id}: Lỗi tính toán - ${status}`);
-                  }
-                  // Delay nhẹ để tránh hit rate limit (nếu cần thiết)
-                  setTimeout(resolve, 200); 
-                });
-              });
-            }
-            console.log('[Route] Hoàn tất tính toán. Cập nhật state directions.', Object.keys(newDirections).length, 'route(s) found.');
-            setDirections(newDirections);
-          };
-          calculateDirections();
-        }, [isLoaded, busRoutes, routeStops]);
-    // #endregion
-    // #endregion
+        // #region useEffect DirectionsRenderer
+        // Đã loại bỏ logic Google Directions API, sẽ chuyển sang Leaflet
+        // #endregion
+        // #endregion
 
     // #region Tọa độ & options bản đồ
-    const center = { lat: 10.8231, lng: 106.6297 };
-    const mapOptions = {
-        disableDefaultUI: false,
-        zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: true,
-        fullscreenControl: true
-    };
+    const center = [10.8231, 106.6297];
     // #endregion
 
     // #region Hàm phụ trợ
@@ -189,23 +208,21 @@ const Routes = ({ isLoaded, loadError }) => {
 
     const handleShowBus = (id) => {
         const bus = busRoutes.find(r => r.id === id);
-        if (bus && map) {
-            // Nếu vị trí xe trùng điểm đón/điểm đến, offset nhẹ để marker không bị che
-            let lat = bus.latitude;
-            let lng = bus.longitude;
+        if (bus) {
+            setSelectedBus(bus); // Mở popup tại marker xe buýt
+            // Chỉ cập nhật selectedRouteId nếu tuyến có đủ điểm dừng
             const stops = routeStops[bus.tuyen_duong_id] || [];
             if (stops.length >= 2) {
-                const firstStop = stops[0];
-                const lastStop = stops[stops.length - 1];
-                if ((Math.abs(lat - Number(firstStop.latitude)) < 0.00001 && Math.abs(lng - Number(firstStop.longitude)) < 0.00001) ||
-                    (Math.abs(lat - Number(lastStop.latitude)) < 0.00001 && Math.abs(lng - Number(lastStop.longitude)) < 0.00001)) {
-                    lat += 0.0001;
-                    lng += 0.0001;
-                }
+                setSelectedRouteId(bus.tuyen_duong_id);
+            } else {
+                setSelectedRouteId(null);
             }
-            map.panTo({ lat, lng });
-            map.setZoom(16);
-            setSelectedBus(bus);
+            // Mở popup bằng ref nếu marker đã render
+            setTimeout(() => {
+                if (markerRefs.current[bus.id]) {
+                    markerRefs.current[bus.id].openPopup();
+                }
+            }, 100);
         }
     };
     // #endregion
@@ -215,8 +232,6 @@ const Routes = ({ isLoaded, loadError }) => {
         <div className="routes-container">
             <div className="routes-main">
                 <h1 className="routes-title">Tuyến đường các xe</h1>
-
-                {/* Ô tìm kiếm xe buýt theo ID, trạng thái, trackingId */}
                 <div className="search-container">
                     <input
                         type="text"
@@ -227,200 +242,183 @@ const Routes = ({ isLoaded, loadError }) => {
                     />
                     <button className="search-btn">🔍</button>
                 </div>
-
-                {/* Bản đồ Google Maps, hiển thị marker và route */}
                 <div className="map-container">
-                    {loadError && (
-                        <div className="map-placeholder"><div className="map-text">Không tải được Google Maps</div></div>
-                    )}
-                    {!isLoaded && !loadError && (
-                        <div className="map-placeholder"><div className="map-text">Đang tải bản đồ...</div></div>
-                    )}
-                    {isLoaded && (
-                        <GoogleMap
-                            mapContainerStyle={mapContainerStyle}
-                            center={center}
-                            zoom={13}
-                            options={mapOptions}
-                            onLoad={(m) => {
-                                setMap(m);
-                                if (window.google?.maps) {
-                                    setTimeout(() => {
-                                        window.google.maps.event.trigger(m, 'resize');
-                                        m.setCenter(center);
-                                    }, 0);
-                                }
-                            }}
-                            onUnmount={() => setMap(null)}
-                        >
-                            {/* Vẽ đường đi thực tế bằng DirectionsRenderer cho từng tuyến xe */}
-                            {busRoutes.map((bus) => (
-                                
-                                directions[bus.id] ? (
-                                    <DirectionsRenderer
-                                        key={`directions-${bus.id}`}
-                                        directions={directions[bus.id]}
-                                        options={{ polylineOptions: { strokeColor: '#007bff', strokeWeight: 4, strokeOpacity: 0.8 } }}
+                    <MapContainer center={center} zoom={13} style={{ width: '100%', height: '650px', borderRadius: '8px' }}>
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution="&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener noreferrer'>OpenStreetMap</a> contributors"
+                        />
+                        {/* Hiển thị tất cả các tuyến đường bằng Polyline và Routing */}
+                        {Object.entries(routeStops).map(([routeId, stops]) => (
+                            stops.length >= 2 ? (
+                                <>
+                                    <Polyline
+                                        key={`polyline-${routeId}`}
+                                        positions={stops.map(stop => [Number(stop.latitude), Number(stop.longitude)])}
+                                        pathOptions={{ color: '#888', weight: 3, opacity: 0.6, dashArray: '6' }}
                                     />
-                                ) : null
-                            ))}
+                                    <Routing key={`routing-${routeId}`} stops={stops} />
+                                </>
+                            ) : null
+                        ))}
 
-                            {/* Hiển thị marker vị trí xe, điểm đón, điểm đến cho từng tuyến */}
-                            {busRoutes.map((bus) => (
-                              (() => {
-                                const markers = [];
+                        {busRoutes.map((bus) => (
+                            <Marker
+                                key={bus.id}
+                                position={[bus.latitude, bus.longitude]}
+                                icon={
+                                    !bus.isOnline ? redIcon :
+                                    bus.speed === 0 ? yellowIcon :
+                                    greenIcon
+                                }
+                                eventHandlers={{ click: () => {
+                                    handleShowBus(bus.id);
+                                    setSelectedRouteId(bus.tuyen_duong_id);
+                                } }}
+                                ref={(ref) => { markerRefs.current[bus.id] = ref; }}
+                            >
+                                {selectedBus && selectedBus.id === bus.id && (
+                                    <Popup position={[bus.latitude, bus.longitude]} onClose={() => setSelectedBus(null)}>
+                                        <div style={{ padding: '10px', minWidth: '200px' }}>
+                                            <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {bus.id}</h3>
+                                            <p style={{ margin: '5px 0' }}><strong>Biển số xe:</strong> {bus.trackingId}</p>
+                                            <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {bus.speed} km/h</p>
+                                            <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {bus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
+                                            <p style={{ margin: '5px 0', fontSize: 12 }}>
+                                                <strong>Vĩ độ:</strong> {bus.latitude.toFixed(6)}<br/>
+                                                <strong>Kinh độ:</strong> {bus.longitude.toFixed(6)}
+                                            </p>
+                                        </div>
+                                    </Popup>
+                                )}
+                            </Marker>
+                        ))}
+                        {busRoutes.map((bus) => {
+                            const stops = routeStops[bus.tuyen_duong_id] || [];
+                            const markers = [];
+                            if (stops.length >= 2) {
+                                const firstStop = stops[0];
+                                const lastStop = stops[stops.length - 1];
                                 markers.push(
-                                  <Marker
-                                    key={bus.id}
-                                    position={{ lat: bus.latitude, lng: bus.longitude }}
-                                    icon={getMarkerIcon(bus.speed, bus.isOnline)}
-                                    onClick={() => setSelectedBus(bus)}
-                                    title={`Xe ${bus.id}`}
-                                  />
+                                    <Marker
+                                        key={`pickup-${bus.id}`}
+                                        position={[Number(firstStop.latitude), Number(firstStop.longitude)]}
+                                        icon={greenIcon}
+                                    >
+                                        <Popup>
+                                            <span>Điểm đón: {firstStop.ten_diem_dung}</span>
+                                        </Popup>
+                                    </Marker>
                                 );
-                                const stops = routeStops[bus.tuyen_duong_id] || [];
-                                if (stops.length >= 2) {
-                                  const firstStop = stops[0];
-                                  const lastStop = stops[stops.length - 1];
-                                  markers.push(
+                                markers.push(
                                     <Marker
-                                      key={`pickup-${bus.id}`}
-                                      position={{ lat: Number(firstStop.latitude), lng: Number(firstStop.longitude) }}
-                                      icon={'http://maps.google.com/mapfiles/ms/icons/green-dot.png'}
-                                      title={`Điểm đón: ${firstStop.ten_diem_dung}`}
-                                    />,
-                                    <Marker
-                                      key={`dropoff-${bus.id}`}
-                                      position={{ lat: Number(lastStop.latitude), lng: Number(lastStop.longitude) }}
-                                      icon={'http://maps.google.com/mapfiles/ms/icons/red-dot.png'}
-                                      title={`Điểm đến: ${lastStop.ten_diem_dung}`}
-                                    />
-                                  );
-                                  // Thêm marker cho các điểm dừng trung gian (màu xanh dương)
-                                  stops.slice(1, stops.length - 1).forEach((stop, index) => {
+                                        key={`dropoff-${bus.id}`}
+                                        position={[Number(lastStop.latitude), Number(lastStop.longitude)]}
+                                        icon={redIcon}
+                                    >
+                                        <Popup>
+                                            <span>Điểm đến: {lastStop.ten_diem_dung}</span>
+                                        </Popup>
+                                    </Marker>
+                                );
+                                stops.slice(1, stops.length - 1).forEach((stop, index) => {
                                     markers.push(
-                                      <Marker
-                                        key={`midstop-${bus.id}-${index}`}
-                                        position={{ lat: Number(stop.latitude), lng: Number(stop.longitude) }}
-                                        icon={'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'}
-                                        title={`Điểm dừng: ${stop.ten_diem_dung}`}
-                                      />
+                                        <Marker
+                                            key={`midstop-${bus.id}-${index}`}
+                                            position={[Number(stop.latitude), Number(stop.longitude)]}
+                                            icon={blueIcon}
+                                        >
+                                            <Popup>
+                                                <span>Điểm dừng: {stop.ten_diem_dung}</span>
+                                            </Popup>
+                                        </Marker>
                                     );
-                                  });
-                                }
-                                return markers;
-                              })()
-                            ))}
-
-                            {/* InfoWindow hiển thị thông tin xe khi click marker hoặc bấm HIỂN THỊ */}
-                            {selectedBus && (
-                                <InfoWindow
-                                    position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}
-                                    onCloseClick={() => setSelectedBus(null)}
-                                >
-                                    <div style={{ padding: '10px', minWidth: '200px' }}>
-                                        <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {selectedBus.id}</h3>
-                                        <p style={{ margin: '5px 0' }}><strong>Tracking ID:</strong> {selectedBus.trackingId}</p>
-                                        <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {selectedBus.speed} km/h</p>
-                                        <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {selectedBus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
-                                        <p style={{ margin: '5px 0', fontSize: 12 }}>
-                                          <strong>Vị trí:</strong> {selectedBus.latitude.toFixed(6)}, {selectedBus.longitude.toFixed(6)}
-                                        </p>
+                                });
+                            }
+                            return markers;
+                        })}
+                    </MapContainer>
+                </div>
+            </div>
+            <div className="routes-sidebar">
+                <div className="sidebar-header">
+                    <h3>Danh sách xe buýt</h3>
+                    <span className="bus-count">{filteredRoutes.length} xe</span>
+                </div>
+                <div className="routes-list">
+                    {loading ? (
+                        <div className="loading-state">
+                            <div className="spinner"></div>
+                            <p>Đang tải danh sách xe...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="error-state">
+                            <p style={{ color: 'red' }}>{error}</p>
+                        </div>
+                    ) : filteredRoutes.length > 0 ? (
+                        filteredRoutes.map(route => {
+                            const stops = routeStops[route.tuyen_duong_id] || [];
+                            const firstStop = stops[0];
+                            const lastStop = stops[stops.length - 1];
+                            return (
+                                <div key={route.id} className="route-card">
+                                    <div className="route-header">
+                                        <span className="route-id">XE: {route.id}</span>
                                     </div>
-                                </InfoWindow>
-                            )}
-                        </GoogleMap>
+                                    <div className="tracking-details">
+                                        <div className="tracking-item">
+                                            <span className="tracking-label">ID</span>
+                                            <span className="tracking-value">
+                                                <span className={`status-indicator ${getStatusClass(route.speed, route.isOnline)}`} />
+                                                {route.trackingId}
+                                            </span>
+                                        </div>
+                                        <div className="tracking-item">
+                                            <span className="tracking-label">Speed</span>
+                                            <span className={`tracking-value speed-value ${getSpeedClass(route.speed)}`}>{route.speed} km/h</span>
+                                        </div>
+                                        <div className="coordinates-section">
+                                            <div className="coordinate-item">
+                                                <span className="coordinate-label">📍 Latitude</span>
+                                                <span className="coordinate-value">{route.latitude.toFixed(6)}</span>
+                                            </div>
+                                            <div className="coordinate-item">
+                                                <span className="coordinate-label">📍 Longitude</span>
+                                                <span className="coordinate-value">{route.longitude.toFixed(6)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="route-body">
+                                        <div className="route-points">
+                                            <div className="route-point">
+                                                <div className="point-indicator departure" />
+                                                <span className="point-label">{firstStop?.ten_diem_dung || 'Chưa thiết lập điểm đón'}</span>
+                                            </div>
+                                            <div className="route-point">
+                                                <div className="point-indicator arrival" />
+                                                <span className="point-label">{lastStop?.ten_diem_dung || 'Chưa thiết lập điểm đến'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="route-controls">
+                                            <button className="show-bus-btn" onClick={() => handleShowBus(route.id)}>
+                                                <span className="btn-icon">📍</span>
+                                                <span className="btn-text">HIỂN THỊ</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="no-results">
+                            <div className="no-results-icon">🔍</div>
+                            <p>Không tìm thấy kết quả</p>
+                            <small>Thử từ khóa khác</small>
+                        </div>
                     )}
                 </div>
             </div>
-
-            {/* Sidebar danh sách xe buýt, hiển thị thông tin, điểm đón/điểm đến, nút HIỂN THỊ */}
-            <div className="routes-sidebar">
-              <div className="sidebar-header">
-                <h3>Danh sách xe buýt</h3>
-                <span className="bus-count">{filteredRoutes.length} xe</span>
-              </div>
-              <div className="routes-list">
-                {loading ? (
-                  <div className="loading-state">
-                    <div className="spinner"></div>
-                    <p>Đang tải danh sách xe...</p>
-                  </div>
-                ) : error ? (
-                  <div className="error-state">
-                    <p style={{ color: 'red' }}>{error}</p>
-                  </div>
-                ) : filteredRoutes.length > 0 ? (
-                  filteredRoutes.map(route => {
-                    const stops = routeStops[route.tuyen_duong_id] || [];
-                    const firstStop = stops[0];
-                    const lastStop = stops[stops.length - 1];
-                    // Lấy directions cho xe này
-                    const eta = getEtaFromDirections(directions[route.id]);
-                    return (
-                      <div key={route.id} className="route-card">
-                        <div className="route-header">
-                          <span className="route-time">Thời gian đến: {eta}</span>
-                          <span className="route-id">XE: {route.id}</span>
-                        </div>
-                        <div className="tracking-details">
-                          <div className="tracking-item">
-                            <span className="tracking-label">ID</span>
-                            <span className="tracking-value">
-                              <span className={`status-indicator ${getStatusClass(route.speed, route.isOnline)}`} />
-                              {route.trackingId}
-                            </span>
-                          </div>
-                          <div className="tracking-item">
-                            <span className="tracking-label">Speed</span>
-                            <span className={`tracking-value speed-value ${getSpeedClass(route.speed)}`}>
-                              {route.speed} km/h
-                            </span>
-                          </div>
-                          <div className="coordinates-section">
-                            <div className="coordinate-item">
-                              <span className="coordinate-label">📍 Latitude</span>
-                              <span className="coordinate-value">{route.latitude.toFixed(6)}</span>
-                            </div>
-                            <div className="coordinate-item">
-                              <span className="coordinate-label">📍 Longitude</span>
-                              <span className="coordinate-value">{route.longitude.toFixed(6)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="route-body">
-                          <div className="route-points">
-                            <div className="route-point">
-                              <div className="point-indicator departure" />
-                              <span className="point-label">{firstStop?.ten_diem_dung || 'Chưa thiết lập điểm đón'}</span>
-                            </div>
-                            <div className="route-point">
-                              <div className="point-indicator arrival" />
-                              <span className="point-label">{lastStop?.ten_diem_dung || 'Chưa thiết lập điểm đến'}</span>
-                            </div>
-                          </div>
-                          <div className="route-controls">
-                            <button className="show-bus-btn" onClick={() => handleShowBus(route.id)}>
-                              <span className="btn-icon">📍</span>
-                              <span className="btn-text">HIỂN THỊ</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="no-results">
-                    <div className="no-results-icon">🔍</div>
-                    <p>Không tìm thấy kết quả</p>
-                    <small>Thử từ khóa khác</small>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+        </div>
     );
-    // #endregion
-};
-
+}
 export default Routes;
