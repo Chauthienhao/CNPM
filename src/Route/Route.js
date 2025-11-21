@@ -6,6 +6,28 @@ import { useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
+
+// Patch lại hàm _clearLines để tránh lỗi khi this._map bị null
+if (L.Routing && L.Routing.Control && L.Routing.Control.prototype._clearLines) {
+    const origClearLines = L.Routing.Control.prototype._clearLines;
+    L.Routing.Control.prototype._clearLines = function () {
+        if (this._map && this._line) {
+            this._map.removeLayer(this._line);
+        }
+        if (this._alternatives && this._alternatives.length) {
+            for (var i in this._alternatives) {
+                if (this._map && this._alternatives[i]) {
+                    this._map.removeLayer(this._alternatives[i]);
+                }
+            }
+            this._alternatives = [];
+        }
+        // Nếu cần giữ lại các xử lý khác, gọi hàm gốc
+        if (origClearLines) {
+            try { origClearLines.call(this); } catch (e) {}
+        }
+    };
+}
 // Component Routing sử dụng leaflet-routing-machine
 function Routing({ stops }) {
     const map = useMap();
