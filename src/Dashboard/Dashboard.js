@@ -1,62 +1,70 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
-import './Dashboard.css'; // Đảm bảo file CSS này được load
+import './Dashboard.css';
 
-// Dữ liệu mô phỏng Dashboard (KPIs)
-const overviewData = { percentage: 85, routes: 25, buses: 300, drivers: 45 };
-
-// Dữ liệu cho các Card hàng dưới (giữ nguyên để không phá vỡ bố cục)
-const busStatusData = [
-    { id: 'BUS 01', status: 'đang hoạt động', color: 'green' },
-    { id: 'BUS 02', status: 'đang chậm tiến độ', color: 'yellow' },
-    { id: 'BUS 03', status: 'đang hoạt động', color: 'green' },
-    { id: 'BUS 04', status: 'đã hoàn thành', color: 'blue' },
-];
-
-const studentData = [
-    { name: 'Nguyễn Văn A', status: 'đang đón', color: 'green' },
-    { name: 'Trần Thị B', status: 'đón chậm', color: 'yellow' },
-    { name: 'Bánh Văn C', status: 'đang đón', color: 'green' },
-    { name: 'Trần Thanh D', status: 'đã đón', color: 'blue' },
-];
-
-// Hàm hỗ trợ
+//Dùng để lấy màu cho trạng thái.
 const getStatusColor = (colorName) => { return `var(--color-${colorName})`; };
+
+/**
+@param {object} bus /*Đối tượng xe buýt từ API dashboard-info.
+@returns {{statusName: string, statusText: string}} /*Tên màu và trạng thái.*/
 
 const getStatusInfo = (bus) => {
     let statusName;
     let statusText;
-    let isOnline;
-
-    if (bus.speed === 0) {
-        statusName = 'red';      // Tốc độ 0: Đỏ (Offline/Đứng yên)
-        statusText = 'Offline/Đứng yên';
-        isOnline = false;
-    } else if (bus.speed <= 15) {
-        statusName = 'yellow';   // Tốc độ thấp: Vàng (Đang chậm)
-        statusText = 'đang chậm';
-        isOnline = true;
-    } else {
-        statusName = 'green';    // Tốc độ hợp lý: Xanh lá (Hoạt động)
-        statusText = 'đang hoạt động';
-        isOnline = true;
+ 
+    // Logic mới dựa trên trường `status` từ DB
+    switch (bus.status) {
+        case 'in_trip':
+            statusName = 'green';
+            statusText = 'Đang trong chuyến';
+            break;
+        case 'available':
+            statusName = 'blue';
+            statusText = 'Sẵn sàng';
+            break;
+        case 'maintenance':
+            statusName = 'yellow';
+            statusText = 'Đang bảo trì';
+            break;
+        case 'offline':
+            statusName = 'red';
+            statusText = 'Ngoại tuyến';
+            break;
+        default: // Xử lý các trường hợp không mong muốn
+            statusName = 'red';
+            statusText = 'Không xác định';
+            break;
     }
-
-    // Gán thêm trường status hoàn thành giả định cho một số xe
-    if (bus.id === 4) { // Giả định xe có id=4 đã hoàn thành (chỉ để demo)
-         statusName = 'blue';
-         statusText = 'đã hoàn thành';
-    }
-
-    return { statusName, statusText, isOnline };
+    return { statusName, statusText };
 };
 
-// HÀM NÀY ĐÃ ĐƯỢC XÓA (trước đây là getStatusColorName)
+/**
+@param {object} student - Đối tượng học sinh từ API.
+@returns {{colorName: string, statusText: string}} - Tên màu và trạng thái.
+ */
+
+const getStudentStatusInfo = (student) => {
+    let colorName;
+    switch (student.status) {
+        case 'Đã đón':
+            colorName = 'blue'; // Màu xanh dương cho trạng thái "Đã đón"
+            break;
+        case 'Nghỉ':
+            colorName = 'red'; // Màu đỏ cho trạng thái "Nghỉ"
+            break;
+        case 'Chưa đón':
+        default:
+            colorName = 'yellow'; // Màu vàng cho trạng thái "Chưa đón"
+            break;
+    }
+    return { colorName, statusText: student.status };
+};
 
 // Xác định ICON MARKER (Đã sửa lỗi gọi hàm không tồn tại và sử dụng SVG)
 const getMarkerIcon = (bus) => {
     // SỬA LỖI: Sử dụng getStatusInfo để lấy statusName đã được tính toán
-    const statusName = getStatusInfo(bus).statusName; 
+    const { statusName } = getStatusInfo(bus); 
     let color;
 
     if (statusName === 'red') {
@@ -81,32 +89,86 @@ const getMarkerIcon = (bus) => {
 };
 
 
-function Dashboard({ isLoaded, loadError }) {
+function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNavigate
     const [busRoutes, setBusRoutes] = useState([]);
+    const [kpiData, setKpiData] = useState({ percentage: 0, routes: 0, buses: 0, drivers: 0 }); // State cho KPIs
+    const [studentList, setStudentList] = useState([]); // State mới cho học sinh
     const [selectedBus, setSelectedBus] = useState(null); 
     const [selectedBusDetails, setSelectedBusDetails] = useState(null);
     const [mapCenter, setMapCenter] = useState({ lat: 10.8231, lng: 106.6297 }); 
     const [map, setMap] = useState(null);
-    const bus_url = 'http://localhost:5000/bus-location';
+    const student_url = 'http://localhost:5000/students';
+    const bus_url = 'http://localhost:5000/dashboard-info'; // Sử dụng endpoint này để có tên tài xế
+
+    const boundsFitted = useRef(false); // Ref để chỉ fit bounds một lần
+
+    // Sử dụng useRef để tránh "stale closure" trong setInterval
+    const selectedBusRef = useRef(selectedBus);
+    const selectedBusDetailsRef = useRef(selectedBusDetails);
+
+    // Luôn cập nhật ref với giá trị state mới nhất
+    useEffect(() => {
+        selectedBusRef.current = selectedBus;
+        selectedBusDetailsRef.current = selectedBusDetails;
+    }, [selectedBus, selectedBusDetails]);
 
     useEffect(() => {
-        window.gm_authFailure = () => {
-            console.error('Google Maps auth failed. Check API key, referrers, billing.');
-        };
-        
-        // 1. Tải dữ liệu ban đầu
-        fetchBusData();
-        
-        // 2. Thiết lập interval
-        const intervalId = setInterval(fetchBusData, 5000); // 5000ms = 5 giây
+        window.gm_authFailure = () => {
+        console.error('Google Maps auth failed. Check API key, referrers, billing.');
+    };
 
-        return () => { 
-            clearInterval(intervalId);
-            delete window.gm_authFailure; 
-        };
-    }, [selectedBusDetails]);
+        fetchBusData();
+        fetchStudentData();
 
-    //Hàm gọi bus-location
+        const intervalId = setInterval(fetchBusData, 5000); // 5000ms = 5 giây
+
+        return () => { 
+        clearInterval(intervalId);
+        delete window.gm_authFailure; 
+        };
+    }, []); // Chỉ chạy một lần khi component mount
+
+    // useEffect để tính toán KPIs từ dữ liệu frontend
+    useEffect(() => {
+        if (busRoutes.length > 0) {
+            const totalBuses = busRoutes.length;
+            const activeBuses = busRoutes.filter(bus => bus.status === 'in_trip' || bus.status === 'available').length;
+            const percentage = totalBuses > 0 ? Math.round((activeBuses / totalBuses) * 100) : 0;
+
+            setKpiData(prevData => ({
+                ...prevData, // Giữ lại giá trị routes và drivers giả lập
+                buses: totalBuses,
+                percentage: percentage,
+                routes: 2,
+                drivers: 2, 
+            }));
+        }
+    }, [busRoutes]); // Chạy lại mỗi khi busRoutes thay đổi
+
+    // useEffect để tự động điều chỉnh map view cho vừa các marker
+    useEffect(() => {
+        // Chỉ chạy khi có map, có dữ liệu và chưa fit bounds lần nào
+        if (map && busRoutes.length > 0 && !boundsFitted.current) {
+            const bounds = new window.google.maps.LatLngBounds();
+            busRoutes.forEach(bus => {
+                bounds.extend({
+                    lat: parseFloat(bus.latitude),
+                    lng: parseFloat(bus.longitude)
+                });
+            });
+
+            if (busRoutes.length > 1) {
+                map.fitBounds(bounds);
+            } else {
+                // Nếu chỉ có 1 xe, chỉ cần căn giữa và set zoom mặc định
+                map.setCenter(bounds.getCenter());
+                map.setZoom(14);
+            }
+            boundsFitted.current = true;
+        }
+    }, [map, busRoutes]);
+
+    //Hàm gọi bus cho map
     const fetchBusData = async () => {
 
         try {
@@ -121,39 +183,60 @@ function Dashboard({ isLoaded, loadError }) {
             }
 
             const result = await response.json();
+            const newBusData = Array.isArray(result) ? result : []; // SỬA LỖI: Xử lý kết quả là một mảng trực tiếp
+
             // Cập nhật state chính
-            setBusRoutes(result.data); 
+            setBusRoutes(newBusData); // 2. Cập nhật state
+
             let busToSelect = null;
 
-            if (selectedBusDetails) {
-                // 2. Nếu đã có xe buýt được chọn, tìm kiếm nó trong dữ liệu mới
-                busToSelect = result.data.find(
-                    bus => bus.bien_so_xe === selectedBusDetails.bien_so_xe
-                );
-            }
-
-            // 3. Nếu không tìm thấy xe đang chọn hoặc chưa có xe nào được chọn thì chọn xe đầu tiên
-            if (!busToSelect && result.data.length > 0) {
-                busToSelect = result.data[0];
-            }
-            
-            // 4. Cập nhật state chỉ khi có xe để chọn
-            if (busToSelect) {
-                // Cập nhật cả InfoWindow và Card chi tiết
-                setSelectedBusDetails(busToSelect);
-                if (selectedBus) {
-                    setSelectedBus(busToSelect);
-                }
-            } else {
-                // Nếu không có xe nào (dữ liệu rỗng), reset lựa chọn
-                setSelectedBusDetails(null);
-                setSelectedBus(null);
+            // Sử dụng giá trị từ ref
+            if (selectedBusDetailsRef.current) {
+            // 2. Nếu đã có xe buýt được chọn, tìm kiếm nó trong dữ liệu mới
+            busToSelect = newBusData.find( // 3. Tìm kiếm trong biến tạm
+            bus => bus.bien_so_xe === selectedBusDetailsRef.current.bien_so_xe
+            );
             }
 
-        } catch (error) {
-            console.error('Failed to fetch bus locations:', error);
-        }
-    };
+                // 3. Nếu không tìm thấy xe đang chọn hoặc chưa có xe nào được chọn thì chọn xe đầu tiên
+                // Bỏ chọn xe đầu tiên để tránh map bị nhảy về xe đầu tiên khi không có xe nào được chọn
+                if (!busToSelect && newBusData.length > 0) { // SỬA LỖI: Bỏ chú thích để chọn xe đầu tiên
+                     busToSelect = newBusData[0];
+                    }
+                
+                // 4. Cập nhật state chỉ khi có xe để chọn
+                if (busToSelect) {
+        // Luôn cập nhật Card chi tiết
+                    setSelectedBusDetails(busToSelect);
+                    // [SỬA LỖI] Chỉ cập nhật InfoWindow nếu nó đang được hiển thị
+                    if (selectedBusRef.current) {
+                    setSelectedBus(busToSelect); // Cập nhật vị trí cho InfoWindow đang mở
+                    }
+                } else {
+                    // Nếu không có xe nào (dữ liệu rỗng), reset lựa chọn
+                    setSelectedBusDetails(null);
+                    setSelectedBus(null);
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch bus locations:', error);
+                }
+        };
+
+    // Hàm gọi API lấy danh sách học sinh
+    const fetchStudentData = async () => {
+        try {
+            const response = await fetch(student_url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            setStudentList(data);
+        } catch (error) {
+            console.error('Failed to fetch students:', error);
+            setStudentList([]); // Đặt lại thành mảng rỗng nếu có lỗi
+        }
+    };
 
     const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '8px' };
     // const center = { lat: 10.8231, lng: 106.6297 }; // Biến này không cần nữa
@@ -221,15 +304,15 @@ function Dashboard({ isLoaded, loadError }) {
                 {selectedBus && (
                     <InfoWindow
                         key={selectedBus.bien_so_xe} 
-                        position={{ lat: parseFloat(selectedBus.latitude), lng: parseFloat(selectedBus.longitude) }}
-                        // [ĐÃ SỬA] CHỈ TẮT InfoWindow
-                        onCloseClick={() => setSelectedBus(null)}
+                        position={{ lat: parseFloat(selectedBus.latitude), lng: parseFloat(selectedBus.longitude) }}
+                        // [ĐÃ SỬA] CHỈ TẮT InfoWindow
+                        onCloseClick={() => setSelectedBus(null)}
                     >
                         <div style={{ padding: '10px', minWidth: '200px', color: '#333' }}>
                             <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {selectedBus.bien_so_xe}</h3> 
                             <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {selectedBus.speed} km/h</p>
                             <p style={{ margin: '5px 0' }}>
-                                <strong>Trạng thái:</strong> {getStatusInfo(selectedBus).isOnline ? '🟢 Online' : '🔴 Offline'}
+                                <strong>Trạng thái:</strong> {getStatusInfo(selectedBus).statusText}
                             </p>
                         </div>
                     </InfoWindow>
@@ -250,7 +333,19 @@ function Dashboard({ isLoaded, loadError }) {
 
                     <div className="right-panel">
                         {/* Cổng quan hệ thống (Giữ nguyên) */}
-                        <div className="card overview-card">{/* ... */}</div>
+                        <div className="card overview-card">
+                            <h3 className="card-title">Tổng quan hệ thống</h3>
+                            <div className="overview-chart-section">
+                                <div className="chart-placeholder" style={{backgroundImage: `conic-gradient(var(--color-green) ${kpiData.percentage}%, var(--card-dark-lighter) ${kpiData.percentage}%)`}}>
+                                    <div className="percent-text">{kpiData.percentage}%</div>
+                                </div>
+                                <div className="overview-kpi">
+                                    <p>Tuyến đường: <span className="font-semibold">{kpiData.routes}</span></p>
+                                    <p>Số xe buýt: <span className="font-semibold">{kpiData.buses}</span></p>
+                                    <p>Số tài xế: <span className="font-semibold">{kpiData.drivers}</span></p>
+                                </div>
+                            </div>
+                        </div>
 
                         {/* xe bus đang chọn (CẬP NHẬT) */}
                         <div className="card bus-selected-card">
@@ -263,8 +358,7 @@ function Dashboard({ isLoaded, loadError }) {
                                         <span className="status-dot" style={{backgroundColor: getStatusColor(getStatusInfo(selectedBusDetails).statusName)}}></span> {getStatusInfo(selectedBusDetails).statusText}
                                     </p>
                                     
-                                    {/* TÀI XẾ KHÔNG CÓ TRONG DB => GIẢ LẬP/BỎ QUA */}
-                                    <p>Tài xế: Không xác định (Chưa có trong DB)</p> 
+                                    <p>Tài xế: {selectedBusDetails.ho_ten || 'Chưa có thông tin'}</p> 
                                     <p className="text-sm mt-2 text-gray-400">Tốc độ: {selectedBusDetails.speed} km/h</p>
                                 </>
                             ) : (
@@ -289,29 +383,54 @@ function Dashboard({ isLoaded, loadError }) {
                 <div className="dashboard-row-bottom">
                     
                     {/*Tình trạng xe */}
-                    <div className="card status-list-card">
-                        <h3 className="card-title">Tình trạng:</h3>
-                        {busStatusData.map(bus => (
-                            <p key={bus.id} className="mb-2">
-                                <span className="font-semibold">{bus.id}</span>: <span className="status-dot" style={{backgroundColor: getStatusColor(bus.color)}}></span> {bus.status}
-                            </p>
-                        ))}
+                    <div className="card status-list-card"> 
+                        <h3 className="card-title">Tình trạng xe</h3>
+                        <div className="status-list-content"> 
+                            {busRoutes.length > 0 ? (
+                                busRoutes.map(bus => {
+                                    const { statusName, statusText } = getStatusInfo(bus);
+                                    return (
+                                        <p key={bus.bien_so_xe} className="mb-2 status-item">
+                                            <span className="font-semibold">{bus.bien_so_xe}</span>: 
+                                            {statusText} <span className="status-dot" style={{ backgroundColor: getStatusColor(statusName) }}></span>
+                                        </p>
+                                    );
+                                })
+                            ) : (
+                                <p>Không có dữ liệu xe buýt.</p>
+                            )}
+                        </div>
                     </div>
 
                     {/*Card Danh sách học sinh */}
                     <div className="card student-list-card">
                         <h3 className="card-title">Danh sách học sinh:</h3>
-                        {studentData.map((student, index) => (
-                            <p key={index} className="mb-2">
-                                <span className="font-semibold">{student.name}</span>: <span className="status-dot" style={{backgroundColor: getStatusColor(student.color)}}></span> {student.status}
-                            </p>
-                        ))}
+                        <div className="status-list-content"> 
+                            {studentList.length > 0 ? (
+                                studentList.map(student => {
+                                    const { colorName, statusText } = getStudentStatusInfo(student);
+                                    return (
+                                        <p key={student.id} className="mb-2 status-item">
+                                            <span className="font-semibold">{student.ho_ten}</span>:  
+                                            {statusText} <span className="status-dot" style={{backgroundColor: getStatusColor(colorName)}}></span>
+                                        </p>
+                                    );
+                                })
+                            ) : (
+                                <p>Đang tải hoặc không có dữ liệu học sinh.</p>
+                            )}
+                        </div>
                     </div>
 
                     {/*Card Lịch trình */}
                     <div className="card schedule-card">
                         <h3 className="card-title">Lịch trình:</h3>
-                        <button className="schedule-btn">Tạo lịch trình mới</button>
+                        {/* 2. Thêm sự kiện onClick */}
+                        <button 
+                            className="schedule-btn" 
+                            onClick={() => onNavigate('schedule')}>
+                            Tạo lịch trình mới
+                        </button>
                     </div>
                 </div>
 

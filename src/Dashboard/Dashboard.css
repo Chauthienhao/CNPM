@@ -2,9 +2,9 @@
 :root {
     
     --color-primary-dark: #2c3e50; 
-    --color-header: #34495e;      /* Nền Card */
-    --card-dark-lighter: #4a667b; /* Màu biểu đồ nền */
-    --color-accent: #e74c3c;      /* Màu đỏ (nút) */
+    --color-header: #34495e;
+    --card-dark-lighter: #4a667b; 
+    --color-accent: #e74c3c;     
     --text-light: #ecf0f1;
     --text-white: #ffffff;
     
@@ -34,7 +34,7 @@
 }
 
 .schedule-card{
-    width: 100%;
+    width: 300px;
 }
 
 .card {
@@ -151,4 +151,46 @@
 .status-dot {
     height: 10px; width: 10px; border-radius: 50%;
     display: inline-block; margin-right: 5px;
+}
+
+/* Cập nhật cho Card Tình trạng xe */
+.status-list-card, .student-list-card {
+    display: flex;
+    flex-direction: column;
+    /* Giới hạn chiều cao của card để scroll hoạt động và giữ layout cân đối */
+    max-height: 220px; /* Bạn có thể điều chỉnh chiều cao này */
+}
+
+.status-list-content {
+    overflow-y: auto; /* Thêm thanh cuộn dọc khi nội dung vượt quá */
+    padding-right: 10px; /* Thêm khoảng trống để thanh cuộn không che nội dung */
+    max-height: 120px; /* Đặt chiều cao tối đa để kích hoạt scroll */
+    flex-grow: 1; /* Cho phép vùng nội dung lấp đầy không gian còn lại trong card */
+}
+
+.status-item {
+    margin-bottom: 8px; /* Tăng khoảng cách giữa các dòng cho dễ đọc */
+}
+
+/* --- Styling cho thanh cuộn đẹp hơn --- */
+
+/* Áp dụng cho Firefox */
+.status-list-content {
+    scrollbar-width: thin; /* "auto" hoặc "thin" */
+    scrollbar-color: var(--card-dark-lighter) var(--color-primary-dark); /* màu con trượt và màu rãnh */
+}
+
+/* Áp dụng cho các trình duyệt WebKit (Chrome, Safari, Edge) */
+.status-list-content::-webkit-scrollbar {
+  width: 8px; /* Độ rộng của thanh cuộn */
+}
+
+.status-list-content::-webkit-scrollbar-track {
+  background: var(--color-primary-dark); /* Màu nền của rãnh cuộn, hợp với nền chính */
+}
+
+.status-list-content::-webkit-scrollbar-thumb {
+  background-color: var(--card-dark-lighter); /* Màu của con trượt, giống màu biểu đồ */
+  border-radius: 10px; /* Bo tròn các góc của con trượt */
+  border: 2px solid var(--color-primary-dark); /* Tạo khoảng cách giữa con trượt và rãnh */
 }

@@ -13,18 +13,15 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY';
 app.use(cors());
 app.use(express.json());
 
-app.get('/bus-location' ,(req,res) => {
-  const query = `SELECT * FROM xebus`;
-
-  db.query(query, (err,results) => {
-    if (err){
-      console.error('Lỗi truy vấn vị trí xe buýt:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu xe buýt.' });
+// Endpoint lấy danh sách học sinh
+app.get('/students', (req, res) => {
+  const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Lỗi truy vấn HocSinh:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu học sinh.' });
     }
-    res.json({
-            data: results,
-            timestamp: new Date().toISOString()
-        });
+    res.json(results);
   });
 });
 
@@ -55,6 +52,27 @@ app.post('/login', (req, res) => {
     }
   });
 });
+
+app.get('/dashboard-info',(req, res)=>{
+  const query = `SELECT 
+        xb.*,
+        tx.ho_ten
+    FROM 
+        trip t
+    INNER JOIN 
+        xebus xb ON t.xe_bus_id = xb.id
+    INNER JOIN 
+        taixe tx ON t.tai_xe_id = tx.id
+    WHERE
+        t.ngay = CURDATE();`;
+  db.query(query, (err, results)=>{
+    if (err) {
+      console.error('Lỗi truy vấn:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ.' });
+    }
+    res.json(results);
+  })
+})
 
 // Endpoint lấy danh sách xe bus
 app.get('/buses', (req, res) => {
@@ -133,6 +151,36 @@ app.get('/drivers', (req, res) => {
     res.json(results);
   });
 });
+
+// Endpoint mới để lấy dữ liệu KPIs (Tổng quan)
+app.get('/kpis', async (req, res) => {
+  try {
+    const [busResults] = await db.promise().query('SELECT COUNT(*) as totalBuses FROM xebus');
+    const [activeBusResults] = await db.promise().query("SELECT COUNT(*) as activeBuses FROM xebus WHERE status = 'in_trip' OR status = 'available'");
+    const [routeResults] = await db.promise().query('SELECT COUNT(*) as totalRoutes FROM tuyenduong');
+    const [driverResults] = await db.promise().query('SELECT COUNT(*) as totalDrivers FROM taixe');
+
+    const totalBuses = busResults[0].totalBuses;
+    const activeBuses = activeBusResults[0].activeBuses;
+    const totalRoutes = routeResults[0].totalRoutes;
+    const totalDrivers = driverResults[0].totalDrivers;
+
+    // Tính toán tỷ lệ phần trăm xe đang hoạt động
+    const percentage = totalBuses > 0 ? Math.round((activeBuses / totalBuses) * 100) : 0;
+
+    res.json({
+      percentage,
+      routes: totalRoutes,
+      buses: totalBuses,
+      drivers: totalDrivers,
+    });
+
+  } catch (err) {
+    console.error('Lỗi truy vấn KPIs:', err);
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu KPIs.' });
+  }
+});
+
 
 // Endpoint lấy danh sách học sinh
 // Endpoint tạo mới lịch trình (trip)

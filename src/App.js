@@ -27,7 +27,6 @@ function App() {
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
   };
-  
   const renderContent = () => {
     switch (activeMenu) {
       case 'driver':
@@ -39,7 +38,7 @@ function App() {
       case 'notification':
         return <ThongBao />;
       case 'dashboard':
-        return <Dashboard isLoaded={isLoaded} loadError={loadError} />;
+        return <Dashboard isLoaded={isLoaded} loadError={loadError} onNavigate={handleMenuClick} />;
       case 'student':
         return <Students/>;
       default:
