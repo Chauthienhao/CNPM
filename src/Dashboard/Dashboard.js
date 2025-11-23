@@ -1,244 +1,399 @@
-import React, { useEffect, useState } from 'react';
-import { GoogleMap, Marker, InfoWindow} from '@react-google-maps/api';
-import './Dashboard.css'; // Đảm bảo file CSS này được load
+import React, { useEffect, useState, useRef, useMemo, memo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import './Dashboard.css';
+import 'leaflet-routing-machine';
 
-// Dữ liệu mô phỏng Dashboard (KPIs)
-const overviewData = { percentage: 85, routes: 25, buses: 300, drivers: 45 };
+// --- HELPERS ---
+const getStatusColor = (colorName) => `var(--color-${colorName})`;
 
-// Dữ liệu vị trí xe 
-const busRoutesData = [
-    // Xe 01: Hoạt động (Xanh lá)
-    { id: '01', trackingId: 'TRK001', latitude: 10.8231, longitude: 106.6297, speed: 25, isOnline: true, driver: 'G.Bình', status: 'đang hoạt động' },
-    // Xe 02: Offline (Đỏ)
-    { id: '02', trackingId: 'TRK002', latitude: 10.8331, longitude: 106.6397, speed: 0, isOnline: false, driver: 'Tài xế Tân', status: 'Offline' },
-    // Xe 03: Đang chậm (Vàng) 
-    { id: '03', trackingId: 'TRK003', latitude: 10.8131, longitude: 106.6197, speed: 14, isOnline: true, driver: 'Lê Văn C', status: 'đang chậm' },
-    // Xe 04: Đã hoàn thành (Xanh Dương) 
-    { id: '04', trackingId: 'TRK004', latitude: 10.8431, longitude: 106.6497, speed: 45, isOnline: true, driver: 'Phạm Minh D', status: 'đã hoàn thành' },
-];
-
-// Dữ liệu cho các Card hàng dưới (giữ nguyên để không phá vỡ bố cục)
-const busStatusData = [
-    { id: 'BUS 01', status: 'đang hoạt động', color: 'green' },
-    { id: 'BUS 02', status: 'đang chậm tiến độ', color: 'yellow' },
-    { id: 'BUS 03', status: 'đang hoạt động', color: 'green' },
-    { id: 'BUS 04', status: 'đã hoàn thành', color: 'blue' },
-];
-
-const studentData = [
-    { name: 'Nguyễn Văn A', status: 'đang đón', color: 'green' },
-    { name: 'Trần Thị B', status: 'đón chậm', color: 'yellow' },
-    { name: 'Bánh Văn C', status: 'đang đón', color: 'green' },
-    { name: 'Trần Thanh D', status: 'đã đón', color: 'blue' },
-];
-
-// Hàm hỗ trợ
-const getStatusColor = (colorName) => { return `var(--color-${colorName})`; };
-
-// HÀM 1: Xác định TÊN MÀU (dùng cho Card)
-const getStatusColorName = (bus) => {
-    if (!bus.isOnline || bus.status === 'Offline') {
-        return 'red'; // Mất kết nối (Đỏ)
+const getStatusInfo = (bus) => {
+    switch (bus.status) {
+        case 'in_trip': return { statusName: 'green', statusText: 'Đang trong chuyến' };
+        case 'available': return { statusName: 'blue', statusText: 'Sẵn sàng' };
+        case 'maintenance': return { statusName: 'yellow', statusText: 'Đang bảo trì' };
+        case 'offline': return { statusName: 'red', statusText: 'Ngoại tuyến' };
+        default: return { statusName: 'red', statusText: 'Không xác định' };
     }
-    if (bus.status.includes('hoàn thành')) {
-        return 'blue'; // Đã hoàn thành (Xanh Dương)
-    }
-    if (bus.status.includes('chậm') || bus.speed <= 15) {
-        return 'yellow'; // Đang chậm hoặc đứng yên/tốc độ thấp (Vàng)
-    }
-    return 'green'; // Mặc định là xanh lá (Online)
 };
 
-// HÀM 2: Xác định ICON MARKER
+const getStudentStatusInfo = (student) => {
+    switch (student.status) {
+        case 'Đã đón': return { colorName: 'blue', statusText: student.status };
+        case 'Nghỉ': return { colorName: 'red', statusText: student.status };
+        default: return { colorName: 'yellow', statusText: student.status };
+    }
+};
+
+// --- ICONS ---
 const getMarkerIcon = (bus) => {
-    // SỬ DỤNG HÀM getStatusColorName để xác định màu chính xác
-    const statusName = getStatusColorName(bus);
-
-    if (statusName === 'red') {
-        return 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'; // Đỏ
+    const { statusName } = getStatusInfo(bus);
+    let iconUrl;
+    // Dùng icon online để đảm bảo load được ảnh
+    switch (statusName) {
+        case 'red': iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png'; break;
+        case 'yellow': iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png'; break; // Dùng orange thay yellow cho rõ
+        case 'blue': iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png'; break;
+        case 'green': default: iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png'; break;
     }
-    if (statusName === 'yellow') {
-        return 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png'; // Vàng
-    }
-    if (statusName === 'blue') {
-        return 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'; // Xanh Dương
-    }
-    return 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'; // Xanh Lá
+    return new L.Icon({
+        iconUrl,
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41], // Size chuẩn của leaflet marker
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
 };
 
+const stopIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png', // Icon trạm dừng dạng tròn nhỏ
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -10]
+});
 
-function Dashboard({ isLoaded, loadError }) {
-    const [selectedBus, setSelectedBus] = useState(null); 
-    const [selectedBusDetails, setSelectedBusDetails] = useState(busRoutesData[0]); 
-    const [map, setMap] = useState(null);
+const studentIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/2995/2995620.png', // Icon học sinh
+    iconSize: [24, 24],
+    iconAnchor: [12, 24],
+    popupAnchor: [0, -24]
+});
 
+// 1. Component xử lý bay tới xe bus (tách biệt để không render lại map)
+const FlyToBus = ({ selectedBus }) => {
+    const map = useMap();
     useEffect(() => {
-        window.gm_authFailure = () => {
-            console.error('Google Maps auth failed. Check API key, referrers, billing.');
+        if (selectedBus && selectedBus.latitude && selectedBus.longitude) {
+            map.flyTo([parseFloat(selectedBus.latitude), parseFloat(selectedBus.longitude)], 15, {
+                animate: true,
+                duration: 1.5
+            });
+        }
+    }, [selectedBus, map]);
+    return null;
+};
+
+// 2. Component vẽ Routing (Logic cập nhật waypoints)
+const RoutingMachine = ({ waypoints }) => {
+    const map = useMap();
+    const routingControlRef = useRef(null);
+
+    // Init Control (Chạy 1 lần)
+    useEffect(() => {
+        if (!map) return;
+
+        const routingControl = L.Routing.control({
+            waypoints: [],
+            lineOptions: {
+                styles: [{ color: '#007bff', weight: 6, opacity: 0.6 }]
+            },
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
+                profile: 'driving'
+            }),
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: false, // QUAN TRỌNG: Tắt tự động zoom
+            show: false,
+            createMarker: () => null // Không tạo marker của thư viện routing
+        });
+
+        routingControl.addTo(map);
+        routingControlRef.current = routingControl;
+
+        return () => {
+            if (map && routingControlRef.current) {
+                try { map.removeControl(routingControlRef.current); } catch(e){}
+            }
         };
-        return () => { delete window.gm_authFailure; };
+    }, [map]);
+
+    // Update Waypoints (Chạy khi props đổi)
+    useEffect(() => {
+        if (routingControlRef.current) {
+            routingControlRef.current.setWaypoints(waypoints || []);
+        }
+    }, [waypoints]);
+
+    return null;
+};
+
+// 3. Component Route + Stops (Memoized để tránh tính toán lại)
+const RouteLayer = memo(({ selectedBusDetails, routeStops, studentList }) => {
+    const waypoints = useMemo(() => {
+        if (!selectedBusDetails || !selectedBusDetails.tuyen_duong_id) return null;
+        const stops = routeStops[selectedBusDetails.tuyen_duong_id];
+        if (!stops || stops.length === 0 || !selectedBusDetails.latitude) return null;
+
+        return [
+            L.latLng(parseFloat(selectedBusDetails.latitude), parseFloat(selectedBusDetails.longitude)),
+            ...stops.map(stop => L.latLng(stop.latitude, stop.longitude))
+        ];
+    }, [selectedBusDetails, routeStops]);
+
+    const stopsToRender = selectedBusDetails ? routeStops[selectedBusDetails.tuyen_duong_id] || [] : [];
+
+    return (
+        <>
+            <RoutingMachine waypoints={waypoints} />
+            {stopsToRender.map(stop => {
+                const studentsWaiting = studentList.filter(s => s.diem_dung_id === stop.id && s.status === 'Chưa đón');
+                return (
+                    <Marker 
+                        key={`stop-${stop.id}`} 
+                        position={[stop.latitude, stop.longitude]} 
+                        icon={stopIcon}
+                        zIndexOffset={0} // Trạm nằm dưới cùng
+                    >
+                        <Popup>
+                            <strong>Trạm: {stop.ten_diem_dung}</strong>
+                            {studentsWaiting.length > 0 ? (
+                                <div style={{marginTop: '5px', fontSize: '12px'}}>
+                                    <strong>Học sinh đang chờ:</strong>
+                                    <ul style={{paddingLeft: '20px', margin: '5px 0 0 0', listStyleType: 'disc'}}>
+                                        {studentsWaiting.map(student => (
+                                            <li key={student.id}>{student.ho_ten}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ) : (
+                                <div style={{marginTop: '5px', fontSize: '12px', fontStyle: 'italic'}}>Không có học sinh nào đang chờ.</div>
+                            )}
+                        </Popup>
+                    </Marker>
+                );
+            })}
+        </>
+    );
+});
+
+
+// --- COMPONENT CHÍNH ---
+
+function Dashboard({ isLoaded, loadError, onNavigate }) {
+    const [busRoutes, setBusRoutes] = useState([]);
+    const [kpiData, setKpiData] = useState({ percentage: 0, routes: 0, buses: 0, drivers: 0 });
+    const [studentList, setStudentList] = useState([]);
+    const [routeStops, setRouteStops] = useState({});
+    
+    const [selectedBus, setSelectedBus] = useState(null); // Để trigger hiệu ứng flyTo
+    const [selectedBusDetails, setSelectedBusDetails] = useState(null); // Để vẽ route
+    
+    const selectedBusDetailsRef = useRef(null);
+
+    // Cập nhật ref mỗi khi state thay đổi để dùng trong setInterval
+    useEffect(() => {
+        selectedBusDetailsRef.current = selectedBusDetails;
+    }, [selectedBusDetails]);
+
+    // Data Fetching
+    useEffect(() => {
+        const fetchData = async () => {
+            await Promise.all([fetchBus(), fetchStudents(), fetchRoutes()]);
+        };
+        fetchData();
+
+        const intervalId = setInterval(fetchBus, 5000);
+        return () => clearInterval(intervalId);
     }, []);
 
-    const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '8px' };
-    const center = { lat: 10.8231, lng: 106.6297 };
-    const mapOptions = {
-        disableDefaultUI: false,
-        zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: true,
-        fullscreenControl: false
+    const fetchBus = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/dashboard-info');
+            if (res.ok) {
+                const data = await res.json();
+                const buses = Array.isArray(data) ? data : [];
+                setBusRoutes(buses);
+
+                // Cập nhật vị trí realtime cho xe đang chọn
+                if (selectedBusDetailsRef.current) {
+                    const updated = buses.find(b => b.bien_so_xe === selectedBusDetailsRef.current.bien_so_xe);
+                    setSelectedBusDetails(updated || null);
+                }
+            }
+        } catch (e) { console.error("Bus fetch error", e); }
     };
 
-    const updateSelectedBus = (bus) => {
-        setSelectedBus(bus);
-        setSelectedBusDetails(bus);
+    const fetchStudents = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/students');
+            if (res.ok) setStudentList(await res.json());
+        } catch (e) { console.error(e); }
     };
-    
-    // Hàm render Map (JSX)
+
+    const fetchRoutes = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/routes');
+            if (res.ok) {
+                const routes = await res.json();
+                const stopsMap = {};
+                for (const route of routes) {
+                    const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
+                    if (stopsRes.ok) stopsMap[route.id] = await stopsRes.json();
+                }
+                setRouteStops(stopsMap);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    // KPI Calc
+    useEffect(() => {
+        if (busRoutes.length > 0) {
+            const active = busRoutes.filter(b => b.status === 'in_trip' || b.status === 'available').length;
+            setKpiData({
+                percentage: Math.round((active / busRoutes.length) * 100),
+                buses: busRoutes.length,
+                routes: 2,
+                drivers: 2
+            });
+        }
+    }, [busRoutes]);
+
+    const handleBusClick = (bus) => {
+        setSelectedBus(bus); // Trigger flyTo
+        setSelectedBusDetails(bus); // Trigger vẽ route
+    };
+
     const renderMap = () => {
-        if (loadError) {
-            return (
-                <div className="map-placeholder">
-                    <p className="map-placeholder-text">Không tải được Google Maps</p>
-                </div>
-            );
-        }
-        if (!isLoaded) {
-            return (
-                <div className="map-placeholder">
-                    <p className="map-placeholder-text">Đang tải bản đồ...</p>
-                </div>
-            );
-        }
+        if (loadError) return <div>Lỗi Map</div>;
+        if (!isLoaded) return <div>Loading Map...</div>;
 
         return (
-            <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={center}
+            <MapContainer
+                center={[10.8231, 106.6297]}
                 zoom={13}
-                options={mapOptions}
-                onLoad={(m) => setMap(m)}
-                onUnmount={() => setMap(null)}
+                style={{ width: '100%', height: '100%', borderRadius: '8px' }}
             >
-                {busRoutesData.map((bus) => (
-                    <Marker
-                        key={bus.id}
-                        position={{ lat: bus.latitude, lng: bus.longitude }}
-                        // Sửa lỗi: Truyền toàn bộ object 'bus' vào
-                        icon={getMarkerIcon(bus)} 
-                        onClick={() => updateSelectedBus(bus)}
-                        title={`Xe ${bus.id}`}
-                    />
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OSM" />
+
+                {/* Điều khiển Camera */}
+                <FlyToBus selectedBus={selectedBus} />
+
+                {/* Lớp vẽ Route & Stops (Đã tách ra ngoài) */}
+                <RouteLayer 
+                    selectedBusDetails={selectedBusDetails}
+                    routeStops={routeStops}
+                    studentList={studentList}
+                />
+
+                {/* Marker Xe Bus */}
+                {busRoutes.map(bus => (
+                    bus.latitude && (
+                        <Marker
+                            key={bus.bien_so_xe}
+                            position={[parseFloat(bus.latitude), parseFloat(bus.longitude)]}
+                            icon={getMarkerIcon(bus)}
+                            zIndexOffset={1000} // QUAN TRỌNG: Xe luôn nằm trên trạm
+                            eventHandlers={{ click: () => handleBusClick(bus) }}
+                        >
+                            <Popup>
+                                <b>{bus.bien_so_xe}</b><br/>
+                                {getStatusInfo(bus).statusText}
+                            </Popup>
+                        </Marker>
+                    )
                 ))}
 
-                {selectedBus && (
-                    <InfoWindow
-                        position={{ lat: selectedBus.latitude, lng: selectedBus.longitude }}
-                        onCloseClick={() => setSelectedBus(null)}
-                    >
-                        <div style={{ padding: '10px', minWidth: '200px', color: '#333' }}>
-                            <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {selectedBus.id}</h3>
-                            <p style={{ margin: '5px 0' }}><strong>Tracking ID:</strong> {selectedBus.trackingId}</p>
-                            <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {selectedBus.speed} km/h</p>
-                            <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {selectedBus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
-                        </div>
-                    </InfoWindow>
-                )}
-            </GoogleMap>
+                {/* Marker Học sinh */}
+                {studentList.map(s => (
+                    s.latitude && (
+                        <Marker 
+                            key={`st-${s.id}`} 
+                            position={[s.latitude, s.longitude]} 
+                            icon={studentIcon}
+                            zIndexOffset={500} // Học sinh nằm giữa
+                        >
+                            <Popup>{s.ho_ten} - {s.status}</Popup>
+                        </Marker>
+                    )
+                ))}
+            </MapContainer>
         );
     };
 
     return (
         <div className="dashboard-content">
-            
             <div className="dashboard-grid-wrapper">
-
-                {/* Hàng trên: Bản đồ và các bảng bên phải */}
                 <div className="dashboard-row-top">
-            
-                    {/* 1. Bản đồ khu vực (Map Container) */}
                     <div className="card map-container">
                         {renderMap()}
                     </div>
-
-                    {/* 2. Bảng bên phải*/}
+                    
                     <div className="right-panel">
-                        
-                        {/* Cổng quan hệ thống */}
-                        <div className="card overview-card">
-                            <h3 className="card-title">Tổng quan hệ thống</h3>
+                         {/* Card Overview */}
+                         <div className="card overview-card">
+                            <h3 className="card-title">Tổng quan</h3>
                             <div className="overview-chart-section">
-                                <div className="chart-placeholder" style={{backgroundImage: `conic-gradient(var(--color-green) ${overviewData.percentage}%, var(--card-dark-lighter) ${overviewData.percentage}%)`}}>
-                                    <div className="percent-text">{overviewData.percentage}%</div>
+                                <div className="chart-placeholder" style={{backgroundImage: `conic-gradient(var(--color-green) ${kpiData.percentage}%, var(--card-dark-lighter) ${kpiData.percentage}%)`}}>
+                                    <div className="percent-text">{kpiData.percentage}%</div>
                                 </div>
                                 <div className="overview-kpi">
-                                    <p>Tuyến đường: <span className="font-semibold">{overviewData.routes}</span></p>
-                                    <p>Số xe buýt: <span className="font-semibold">{overviewData.buses}</span></p>
-                                    <p>Số tài xế: <span className="font-semibold">{overviewData.drivers}</span></p>
+                                    <p>Xe: {kpiData.buses} | Tài xế: {kpiData.drivers}</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* xe bus đang chọn */}
+                        {/* Card Selected Bus */}
                         <div className="card bus-selected-card">
-                            <h3 className="card-title">Xe buýt đang chọn</h3>
+                            <h3 className="card-title">Chi tiết xe</h3>
                             {selectedBusDetails ? (
-                                <>
-                                    <p className="text-xl font-bold mb-2">BUS {selectedBusDetails.id}</p>
-                                    <p className="mb-4 text-status-color" style={{color: getStatusColor(getStatusColorName(selectedBusDetails))}}>
-                                        <span className="status-dot" style={{backgroundColor: getStatusColor(getStatusColorName(selectedBusDetails))}}></span> {selectedBusDetails.status || 'Đang theo dõi'}
+                                <div>
+                                    <p className="text-xl font-bold">{selectedBusDetails.bien_so_xe}</p>
+                                    <p className="mb-2" style={{color: getStatusColor(getStatusInfo(selectedBusDetails).statusName)}}>
+                                        {getStatusInfo(selectedBusDetails).statusText}
                                     </p>
-                                    <p>Tài xế: {selectedBusDetails.driver}</p>
-                                    <p className="text-sm mt-2 text-gray-400">Tốc độ: {selectedBusDetails.speed} km/h</p>
-                                </>
-                            ) : (
-                                <p>Vui lòng chọn xe buýt trên bản đồ.</p>
-                            )}
+                                    <p className="text-sm">Tài xế: <strong>{selectedBusDetails.ten_tai_xe || 'Chưa có'}</strong></p>
+                                    <p className="text-sm">Tổng số học sinh: <strong>{selectedBusDetails.tong_so_hoc_sinh || 0}</strong></p>
+                                    {selectedBusDetails.danh_sach_ten_hoc_sinh && (
+                                        <p className="text-xs text-gray-400 mt-1">({selectedBusDetails.danh_sach_ten_hoc_sinh})</p>
+                                    )}
+
+                                </div>
+                            ) : <p>Chọn xe trên bản đồ để xem lộ trình</p>}
                         </div>
-                        
-                        {/* bảng cảnh báo sự cố gần đây */}
-                        <div className="card bus-alert-card">
-                            <h3 className="card-title">Cảnh báo sự cố gần đây</h3>
-                            <p className="alert-text text-yellow-400 text-sm mb-1">
-                                 Bus 02: đang chậm tiến độ (15 phút) - 9:30 SA
-                            </p>
-                            <p className="alert-text text-red-400 text-sm">
-                                 Tài xế Tân: gặp một chút sự cố
-                            </p>
+
+                         {/* Card Alert */}
+                         <div className="card bus-alert-card">
+                            <h3 className="card-title">Thông báo</h3>
+                            <p className="alert-text text-yellow-400">Hệ thống hoạt động bình thường</p>
                         </div>
                     </div>
                 </div>
 
-                {/* bảng bên dưới */}
                 <div className="dashboard-row-bottom">
-                    
-                    {/*Tình trạng xe */}
-                    <div className="card status-list-card">
-                        <h3 className="card-title">Tình trạng:</h3>
-                        {busStatusData.map(bus => (
-                            <p key={bus.id} className="mb-2">
-                                <span className="font-semibold">{bus.id}</span>: <span className="status-dot" style={{backgroundColor: getStatusColor(bus.color)}}></span> {bus.status}
-                            </p>
-                        ))}
+                     {/* List Xe */}
+                     <div className="card status-list-card">
+                        <h3 className="card-title">Danh sách xe</h3>
+                        <div className="status-list-content">
+                            {busRoutes.map(bus => (
+                                <p key={bus.bien_so_xe} className="mb-2 status-item">
+                                    <b>{bus.bien_so_xe}</b>
+                                    <span className="status-dot" style={{backgroundColor: getStatusColor(getStatusInfo(bus).statusName)}}></span>
+                                </p>
+                            ))}
+                        </div>
                     </div>
 
-                    {/*Card Danh sách học sinh */}
+                    {/* List Học sinh */}
                     <div className="card student-list-card">
-                        <h3 className="card-title">Danh sách học sinh:</h3>
-                        {studentData.map((student, index) => (
-                            <p key={index} className="mb-2">
-                                <span className="font-semibold">{student.name}</span>: <span className="status-dot" style={{backgroundColor: getStatusColor(student.color)}}></span> {student.status}
-                            </p>
-                        ))}
+                        <h3 className="card-title">Học sinh</h3>
+                        <div className="status-list-content">
+                            {studentList.map(s => (
+                                <p key={s.id} className="mb-2 status-item">
+                                    {s.ho_ten} ({s.status})
+                                    <span className="status-dot" style={{backgroundColor: getStatusColor(getStudentStatusInfo(s).colorName)}}></span>
+                                </p>
+                            ))}
+                        </div>
                     </div>
-
-                    {/*Card Lịch trình */}
+                    
                     <div className="card schedule-card">
-                        <h3 className="card-title">Lịch trình:</h3>
-                        <button className="schedule-btn">Tạo lịch trình mới</button>
+                         <h3 className="card-title">Lịch trình</h3>
+                         <button className="schedule-btn" onClick={() => onNavigate('schedule')}>Quản lý</button>
                     </div>
                 </div>
-
             </div>
         </div>
     );

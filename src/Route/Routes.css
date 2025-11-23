@@ -1,3 +1,7 @@
+/* Ẩn hướng dẫn lộ trình của leaflet-routing-machine trên map */
+.leaflet-routing-container {
+  display: none !important;
+}
 .app-wrapper {
   height: 100vh;
   display: flex;

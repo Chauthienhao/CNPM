@@ -1,16 +1,136 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './Schedule.css';
 
 const Schedule = () => {
+  // State cho tab, form, và dữ liệu từ DB
   const [selectedTab, setSelectedTab] = useState('routes');
   const [routeName, setRouteName] = useState('');
   const [driverId, setDriverId] = useState('');
   const [busId, setBusId] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [schedules, setSchedules] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [buses, setBuses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
+  // Thêm state lưu id lịch trình được chọn
+  const [selectedScheduleId, setSelectedScheduleId] = useState(null);
 
-  const handleSave = () => {
-    console.log({ routeName, driverId, busId, studentId });
-    alert('Đã lưu thông tin!');
+  useEffect(() => {
+    // Fetch dữ liệu từ API backend
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [schedulesRes, driversRes, busesRes, studentsRes] = await Promise.all([
+          fetch('http://localhost:5000/schedules'),
+          fetch('http://localhost:5000/drivers'),
+          fetch('http://localhost:5000/buses'),
+          fetch('http://localhost:5000/students')
+        ]);
+        if (!schedulesRes.ok) throw new Error(`HTTP ${schedulesRes.status}`);
+        const schedulesData = await schedulesRes.json();
+        const driversData = driversRes.ok ? await driversRes.json() : [];
+        const busesData = busesRes.ok ? await busesRes.json() : [];
+        const studentsData = studentsRes.ok ? await studentsRes.json() : [];
+        setSchedules(schedulesData);
+        setDrivers(driversData);
+        setBuses(busesData);
+        setStudents(studentsData);
+        setError(null);
+      } catch (err) {
+        console.error('Lỗi tải dữ liệu:', err);
+        if (err.message.includes('Failed to fetch')) {
+          setError('Không thể kết nối server. Vui lòng kiểm tra server đã chạy chưa (node server.js)');
+        } else {
+          setError(`Lỗi: ${err.message}`);
+        }
+        setSchedules([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Hàm fetch lại lịch trình từ server
+  const fetchSchedules = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/schedules');
+      const data = await res.json();
+      if (res.ok) {
+        setSchedules(data);
+      }
+    } catch (err) {
+      // Có thể xử lý lỗi nếu cần
+    }
+  };
+
+  // Hàm xác nhận: thêm lịch trình vào DB khi đủ dữ kiện (trừ học sinh)
+  const handleSave = async () => {
+    if (!routeName || !driverId || !busId || !selectedDate) {
+      alert('Vui lòng nhập đầy đủ tuyến đường, tài xế, xe buýt và ngày!');
+      return;
+    }
+    // Tìm id tuyến đường
+    const route = schedules.find(sch => sch.ten_tuyen_duong === routeName);
+    const tuyen_duong_id = route ? route.id : null;
+    if (!tuyen_duong_id) {
+      alert('Không tìm thấy tuyến đường hợp lệ!');
+      return;
+    }
+    // Cho nhập giờ xuất phát
+    const gio_xuat_phat = prompt('Nhập giờ xuất phát (hh:mm):', '08:00');
+    if (!gio_xuat_phat) return;
+    const thu = new Date(selectedDate).getDay().toString();
+    try {
+      const res = await fetch('http://localhost:5000/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tuyen_duong_id,
+          tai_xe_id: driverId,
+          xe_bus_id: busId,
+          ngay: selectedDate,
+          gio_xuat_phat,
+          thu
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Thêm lịch trình thành công!');
+        await fetchSchedules(); // Reload lại danh sách lịch trình
+      } else {
+        alert(data.message || 'Lỗi thêm lịch trình!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
+  };
+
+  // Hàm xóa lịch trình đang được chọn
+  const handleDelete = async () => {
+    if (!selectedScheduleId) {
+      alert('Vui lòng chọn lịch trình để xóa!');
+      return;
+    }
+    if (!window.confirm('Bạn có chắc muốn xóa lịch trình này?')) return;
+    try {
+      const res = await fetch(`http://localhost:5000/trip/${selectedScheduleId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Xóa lịch trình thành công!');
+        await fetchSchedules(); // Reload lại danh sách lịch trình
+        setSelectedScheduleId(null);
+      } else {
+        alert(data.message || 'Lỗi xóa lịch trình!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
   };
 
   const handleCancel = () => {
@@ -20,115 +140,154 @@ const Schedule = () => {
     setStudentId('');
   };
 
-  const scheduleData = {
-    'Thứ 2': [
-      { route: 'tuyến 01', time: '9:30 AM' },
-      { route: 'tuyến 02', time: '1:00 PM' },
-      { route: 'tuyến 03', time: '3:30 PM' }
-    ],
-    'Thứ 3': [
-      { route: 'tuyến 01', time: '7:30 AM' },
-      { route: 'tuyến 02', time: '8:30 AM' },
-      { route: 'tuyến 03', time: '3:30 PM' },
-      { route: 'tuyến 04', time: '5:30 PM' }
-    ],
-    'Thứ 4': [
-      { route: 'tuyến 01', time: '7:30 AM' },
-      { route: 'tuyến 02', time: '8:30 AM' }
-    ],
-    'Thứ 5': [{ route: 'tuyến 01', time: '7:30 AM' }],
-    'Thứ 6': [],
-    'Thứ 7': [{ route: 'tuyến 01', time: '8:30 AM' }]
+  const formatTime = (t) => t ? t.substring(0,5) : '--:--';
+
+  // Nhóm lịch trình theo ngày trong tuần (giả định phân bổ đều)
+  const groupByWeekday = () => {
+    // Nhóm lịch trình theo thứ (dựa vào trường thu trong DB)
+    const days = [[], [], [], [], [], []]; // Thứ 2-7
+    schedules.forEach((sch) => {
+      switch (sch.thu) {
+        case '2': days[0].push(sch); break;
+        case '3': days[1].push(sch); break;
+        case '4': days[2].push(sch); break;
+        case '5': days[3].push(sch); break;
+        case '6': days[4].push(sch); break;
+        case '7': days[5].push(sch); break;
+        default: break;
+      }
+    });
+    return days;
   };
 
-  const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  // Hàm tìm kiếm lịch trình từ server
+  const handleSearch = async () => {
+    if (!selectedDate && !driverId && !busId) {
+      alert('Vui lòng chọn ít nhất một điều kiện tìm kiếm (ngày, tài xế hoặc mã xe buýt)');
+      return;
+    }
+    const params = [];
+    if (selectedDate) params.push(`ngay=${selectedDate}`);
+    if (driverId) params.push(`tai_xe_id=${driverId}`);
+    if (busId) params.push(`xe_bus_id=${busId}`);
+    const queryString = params.length > 0 ? '?' + params.join('&') : '';
+    try {
+      const res = await fetch(`http://localhost:5000/schedules/search${queryString}`);
+      const data = await res.json();
+      if (res.ok) {
+        if (data.length === 0) {
+          alert('Không tìm thấy lịch trình phù hợp!');
+        } else {
+          alert('Kết quả tìm kiếm:\n' + data.map(sch => `${sch.ten_tuyen_duong} - ${sch.tai_xe} - ${sch.bien_so_xe} - ${sch.ngay} ${sch.gio_xuat_phat}`).join('\n'));
+        }
+      } else {
+        alert(data.message || 'Lỗi tìm kiếm!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
+  };
+
+  const weekdays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  const daySchedules = groupByWeekday();
 
   return (
     <div className="schedule-page">
       <div className="schedule-container">
         <div className="schedule-main">
           <h2 className="schedule-title">Quản lí lịch trình</h2>
-
           <div className="tab-buttons">
-            <button
-              className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`}
+            <button 
+              className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`} 
               onClick={() => setSelectedTab('routes')}
-            >
-              Tất cả tuyến đường
-            </button>
-            <button
-              className={`tab-btn ${selectedTab === 'monthly' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('monthly')}
-            >
-              Hàng tháng
-            </button>
-            <button
-              className={`tab-btn ${selectedTab === 'bus' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('bus')}
-            >
-              Tất cả xe buýt
-            </button>
+            >Tất cả tuyến đường</button>
           </div>
-
-          <div className="calendar-wrapper">
+          {loading ? (
+            <div className="loading-state">Đang tải dữ liệu...</div>
+          ) : error ? (
+            <div className="error-state" style={{color:'red'}}>{error}</div>
+          ) : (
             <div className="schedule-grid">
               <div className="day-headers">
-                {days.map((day) => (
-                  <div key={day} className="day-header">
-                    {day}
-                  </div>
+                {weekdays.map(day => (
+                  <div key={day} className="day-header">{day}</div>
                 ))}
               </div>
-
               <div className="schedule-content">
-                {days.map((day) => (
-                  <div key={day} className="day-column">
-                    {scheduleData[day].map((item, index) => (
-                      <div key={index} className="schedule-item">
-                        <div className="route-name">{item.route}</div>
-                        <div className="route-time">{item.time}</div>
+                {daySchedules.map((dayItems, dayIdx) => (
+                  <div key={dayIdx} className="day-column">
+                    {dayItems.map(item => (
+                      <div 
+                        key={item.id} 
+                        className="schedule-item"
+                        onClick={() => {
+                          setSelectedScheduleId(item.id);
+                          setRouteName(item.ten_tuyen_duong);
+                          // Tìm id tài xế từ danh sách drivers dựa vào tên
+                          const driver = drivers.find(d => d.ho_ten === item.tai_xe);
+                          setDriverId(driver ? driver.id : '');
+                          // Tìm id xe buýt từ danh sách buses dựa vào biển số
+                          const bus = buses.find(b => b.bien_so_xe === item.bien_so_xe);
+                          setBusId(bus ? bus.id : '');
+                          setStudentId(item.student_id || '');
+                          setSelectedDate(item.ngay);
+                        }}
+                      >
+                        <div className="route-name">{item.ten_tuyen_duong}</div>
+                        <div className="route-time">{formatTime(item.gio_xuat_phat)}</div>
+                        <div className="route-driver">Tài xế: {item.tai_xe}</div>
+                        <div className="route-bus">Xe: {item.bien_so_xe}</div>
                       </div>
                     ))}
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
-
         <aside className="schedule-sidebar">
           <div className="sidebar-section">
-            <h3>Chi tiết:</h3>
-
-            <label>Tên tuyến đường</label>
-            <div className="readonly-field">
-              {routeName || 'Chọn tuyến từ bản đồ'}
-            </div>
-
+              <h3>Chi tiết:</h3>
+              {/* Bộ lọc ngày phía trên tên tuyến đường */}
+              <label>Lọc theo ngày:</label>
+              <input
+                type="date"
+                className="dropdown"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                style={{marginBottom: '10px'}}
+              />
+              <label>Tên tuyến đường</label>
+              <input
+                type="text"
+                className="dropdown"
+                value={routeName}
+                onChange={e => setRouteName(e.target.value)}
+                placeholder="Nhập tên tuyến đường"
+                style={{marginBottom: '10px'}}
+              />
             <label>Tài xế:</label>
             <select
               className="dropdown"
               value={driverId}
               onChange={(e) => setDriverId(e.target.value)}
             >
-              <option value="">Chọn tài xế</option>
-              <option value="driver1">Nguyễn Văn A</option>
-              <option value="driver2">Trần Thị B</option>
-              <option value="driver3">Lê Văn C</option>
+              <option value="">Tài xế</option>
+              {drivers.map(driver => (
+                <option key={driver.id} value={driver.id}>{driver.ho_ten}</option>
+              ))}
             </select>
-
             <label>Xe buýt:</label>
             <select
               className="dropdown"
               value={busId}
               onChange={(e) => setBusId(e.target.value)}
             >
-              <option value="">Chọn xe buýt</option>
-              <option value="bus1">XE 01</option>
-              <option value="bus2">XE 02</option>
-              <option value="bus3">XE 03</option>
+              <option value="">Bus</option>
+              {buses.map(bus => (
+                <option key={bus.id} value={bus.id}>{bus.bien_so_xe}</option>
+              ))}
             </select>
-
             <label>Danh sách học sinh:</label>
             <select
               className="dropdown"
@@ -136,19 +295,15 @@ const Schedule = () => {
               onChange={(e) => setStudentId(e.target.value)}
             >
               <option value="">Chọn học sinh</option>
-              <option value="student1">Học sinh 01</option>
-              <option value="student2">Học sinh 02</option>
-              <option value="student3">Học sinh 03</option>
+              {students.map(student => (
+                <option key={student.id} value={student.id}>{student.ho_ten}</option>
+              ))}
             </select>
           </div>
-
-          <div className="sidebar-buttons">
-            <button className="btn-cancel" onClick={handleCancel}>
-              Hủy
-            </button>
-            <button className="btn-save" onClick={handleSave}>
-              Lưu
-            </button>
+          <div className="sidebar-buttons" style={{display:'flex', gap:'10px'}}>
+            <button className="btn-save" onClick={handleSave}>Xác nhận</button>
+            <button className="btn-cancel" onClick={handleSearch}>Tìm kiếm</button>
+            <button className="btn-cancel" onClick={handleDelete}>Xóa</button>
           </div>
         </aside>
       </div>
