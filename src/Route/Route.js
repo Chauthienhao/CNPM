@@ -9,6 +9,8 @@ import 'leaflet-routing-machine';
 
 // Patch lại hàm _clearLines để tránh lỗi khi this._map bị null
 if (L.Routing && L.Routing.Control && L.Routing.Control.prototype._clearLines) {
+    // PATCH: Sửa lỗi khi gọi _clearLines của leaflet-routing-machine nếu _map bị null
+    // Đảm bảo xóa các tuyến đường cũ mà không gây crash khi bản đồ bị null
     const origClearLines = L.Routing.Control.prototype._clearLines;
     L.Routing.Control.prototype._clearLines = function () {
         if (this._map && this._line) {
@@ -30,6 +32,8 @@ if (L.Routing && L.Routing.Control && L.Routing.Control.prototype._clearLines) {
 }
 // Component Routing sử dụng leaflet-routing-machine
 function Routing({ stops }) {
+    // Component Routing: Vẽ tuyến đường giữa các điểm dừng bằng leaflet-routing-machine
+    // Tự động cleanup khi thay đổi stops hoặc khi component bị unmount
     const map = useMap();
     const routingControlRef = useRef(null);
 
@@ -199,6 +203,8 @@ const Routes = ({ isLoaded, loadError }) => {
     // #region Hàm phụ trợ
     // Lấy thời gian đến dự kiến từ Directions API
     function getEtaFromDirections(directions) {
+    // Hàm lấy thời gian đến dự kiến từ Directions API (nếu dùng)
+    // Trả về tổng thời gian di chuyển (phút) qua các legs của route
       if (!directions || !directions.routes || !directions.routes[0] || !directions.routes[0].legs) return 'N/A';
       const legs = directions.routes[0].legs;
       let totalDuration = 0;
@@ -213,6 +219,28 @@ const Routes = ({ isLoaded, loadError }) => {
       }
       return 'N/A';
     }
+        // Hàm tính ETA đơn giản dựa vào tốc độ và khoảng cách đến điểm cuối
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            // Hàm tính khoảng cách giữa 2 tọa độ (km) theo công thức Haversine
+            // Dùng cho tính ETA đơn giản khi không có dữ liệu route thực tế
+            const R = 6371; // bán kính Trái Đất (km)
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; // km
+        }
+
+        function calculateETA(bus, destination) {
+            // Hàm tính thời gian đến (ETA) dựa vào tốc độ xe và khoảng cách đến điểm cuối
+            // Nếu không đủ dữ liệu hoặc tốc độ <= 0 thì trả về 'N/A'
+            if (!bus || !destination || !bus.speed || bus.speed <= 0) return 'N/A';
+            const distance = haversineDistance(bus.latitude, bus.longitude, destination.latitude, destination.longitude);
+            const etaMinutes = Math.round((distance / bus.speed) * 60); // phút
+            return `${etaMinutes} phút`;
+        }
     const filteredRoutes = busRoutes.filter(route =>
         route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         route.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -379,13 +407,28 @@ const Routes = ({ isLoaded, loadError }) => {
                         </div>
                     ) : filteredRoutes.length > 0 ? (
                         filteredRoutes.map(route => {
+                                                        // Debug: log giá trị speed và isOnline để kiểm tra logic
+                                                        console.log(`Bus ${route.id} - speed:`, route.speed, 'isOnline:', route.isOnline);
                             const stops = routeStops[route.tuyen_duong_id] || [];
                             const firstStop = stops[0];
                             const lastStop = stops[stops.length - 1];
+                            let eta = 'N/A';
+                            if (lastStop) {
+                                if (!route.isOnline) {
+                                    eta = 'Xe offline';
+                                } else if (route.speed > 0) {
+                                    eta = calculateETA(route, lastStop);
+                                } else if (route.speed === 0) {
+                                    eta = 'Xe đang dừng';
+                                }
+                            }
                             return (
                                 <div key={route.id} className="route-card">
                                     <div className="route-header">
                                         <span className="route-id">XE: {route.id}</span>
+                                    </div>
+                                    <div style={{marginBottom: '8px', fontWeight: 'bold', color: '#00e676'}}>
+                                        Thời gian đến: {eta}
                                     </div>
                                     <div className="tracking-details">
                                         <div className="tracking-item">
