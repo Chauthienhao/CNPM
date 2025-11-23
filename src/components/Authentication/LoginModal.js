@@ -43,14 +43,16 @@ const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
 
             const data = await response.json();
 
-            if (response.ok) {
-                setMessage(data.message);
-                setMessageType("success");
-                setTimeout(() => onLoginSuccess(), 1000); // Close modal after 1 second
-            } else {
-                setMessage(data.message);
-                setMessageType("error");
-            }
+                if (response.ok) {
+                    setMessage(data.message);
+                    setMessageType("success");
+                    console.log("Login success user object:", data.user);
+                    // Pass user object with role to parent onLoginSuccess
+                    setTimeout(() => onLoginSuccess(data.user), 1000); // Close modal after 1 second
+                } else {
+                    setMessage(data.message);
+                    setMessageType("error");
+                }
         } catch (error) {
             console.error('Lỗi:', error);
             setMessage('Lỗi kết nối máy chủ.');
