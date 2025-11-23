@@ -61,9 +61,8 @@ const getStudentStatusInfo = (student) => {
     return { colorName, statusText: student.status };
 };
 
-// Xác định ICON MARKER (Đã sửa lỗi gọi hàm không tồn tại và sử dụng SVG)
 const getMarkerIcon = (bus) => {
-    // SỬA LỖI: Sử dụng getStatusInfo để lấy statusName đã được tính toán
+   // Sử dụng getStatusInfo để lấy statusName
     const { statusName } = getStatusInfo(bus); 
     let color;
 
@@ -77,7 +76,7 @@ const getMarkerIcon = (bus) => {
         color = '#90EE90'; // Xanh lá
     }
     
-    // Trả về đối tượng Icon cho Google Maps, sử dụng SVG
+    // Trả về đối tượng Icon cho Google Maps
     return {
         path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z", // Path hình giọt nước
         fillColor: color,
@@ -98,15 +97,10 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
     const [mapCenter, setMapCenter] = useState({ lat: 10.8231, lng: 106.6297 }); 
     const [map, setMap] = useState(null);
     const student_url = 'http://localhost:5000/students';
-    const bus_url = 'http://localhost:5000/dashboard-info'; // Sử dụng endpoint này để có tên tài xế
-
-    const boundsFitted = useRef(false); // Ref để chỉ fit bounds một lần
-
-    // Sử dụng useRef để tránh "stale closure" trong setInterval
+    const bus_url = 'http://localhost:5000/dashboard-info';
+    const boundsFitted = useRef(false);
     const selectedBusRef = useRef(selectedBus);
     const selectedBusDetailsRef = useRef(selectedBusDetails);
-
-    // Luôn cập nhật ref với giá trị state mới nhất
     useEffect(() => {
         selectedBusRef.current = selectedBus;
         selectedBusDetailsRef.current = selectedBusDetails;
@@ -183,24 +177,24 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
             }
 
             const result = await response.json();
-            const newBusData = Array.isArray(result) ? result : []; // SỬA LỖI: Xử lý kết quả là một mảng trực tiếp
+            const newBusData = Array.isArray(result) ? result : [];
 
             // Cập nhật state chính
-            setBusRoutes(newBusData); // 2. Cập nhật state
+            setBusRoutes(newBusData); //Cập nhật state
 
             let busToSelect = null;
 
             // Sử dụng giá trị từ ref
             if (selectedBusDetailsRef.current) {
-            // 2. Nếu đã có xe buýt được chọn, tìm kiếm nó trong dữ liệu mới
-            busToSelect = newBusData.find( // 3. Tìm kiếm trong biến tạm
+            //Nếu đã có xe buýt được chọn, tìm kiếm nó trong dữ liệu mới
+            busToSelect = newBusData.find( // Tìm kiếm trong biến tạm
             bus => bus.bien_so_xe === selectedBusDetailsRef.current.bien_so_xe
             );
             }
 
-                // 3. Nếu không tìm thấy xe đang chọn hoặc chưa có xe nào được chọn thì chọn xe đầu tiên
+                // Nếu không tìm thấy xe đang chọn hoặc chưa có xe nào được chọn thì chọn xe đầu tiên
                 // Bỏ chọn xe đầu tiên để tránh map bị nhảy về xe đầu tiên khi không có xe nào được chọn
-                if (!busToSelect && newBusData.length > 0) { // SỬA LỖI: Bỏ chú thích để chọn xe đầu tiên
+                if (!busToSelect && newBusData.length > 0) {
                      busToSelect = newBusData[0];
                     }
                 
@@ -208,7 +202,6 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                 if (busToSelect) {
         // Luôn cập nhật Card chi tiết
                     setSelectedBusDetails(busToSelect);
-                    // [SỬA LỖI] Chỉ cập nhật InfoWindow nếu nó đang được hiển thị
                     if (selectedBusRef.current) {
                     setSelectedBus(busToSelect); // Cập nhật vị trí cho InfoWindow đang mở
                     }
@@ -234,12 +227,11 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
             setStudentList(data);
         } catch (error) {
             console.error('Failed to fetch students:', error);
-            setStudentList([]); // Đặt lại thành mảng rỗng nếu có lỗi
+            setStudentList([]);
         }
     };
 
     const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '8px' };
-    // const center = { lat: 10.8231, lng: 106.6297 }; // Biến này không cần nữa
     const mapOptions = {
         disableDefaultUI: false,
         zoomControl: true,
@@ -283,7 +275,7 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                 options={mapOptions}
                 onLoad={(m) => setMap(m)}
                 onUnmount={() => setMap(null)}
-                // THÊM: Bắt sự kiện kéo bản đồ để cập nhật mapCenter, ngăn bản đồ giật về trung tâm mặc định
+                //Bắt sự kiện kéo bản đồ để cập nhật mapCenter, ngăn bản đồ giật về trung tâm
                 onDragEnd={() => {
                     if (map) {
                         const newCenter = map.getCenter();
@@ -293,7 +285,7 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
             >
                 {busRoutes.map((bus) => (
                     <Marker
-                        key={bus.bien_so_xe} // <--- Dùng bien_so_xe làm key
+                        key={bus.bien_so_xe} // Dùng bien_so_xe làm key
                         position={{ lat: parseFloat(bus.latitude), lng: parseFloat(bus.longitude) }}
                         icon={getMarkerIcon(bus)} 
                         onClick={() => updateSelectedBus(bus)}
@@ -305,7 +297,6 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                     <InfoWindow
                         key={selectedBus.bien_so_xe} 
                         position={{ lat: parseFloat(selectedBus.latitude), lng: parseFloat(selectedBus.longitude) }}
-                        // [ĐÃ SỬA] CHỈ TẮT InfoWindow
                         onCloseClick={() => setSelectedBus(null)}
                     >
                         <div style={{ padding: '10px', minWidth: '200px', color: '#333' }}>
@@ -332,7 +323,7 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                     </div>
 
                     <div className="right-panel">
-                        {/* Cổng quan hệ thống (Giữ nguyên) */}
+                        {}
                         <div className="card overview-card">
                             <h3 className="card-title">Tổng quan hệ thống</h3>
                             <div className="overview-chart-section">
@@ -347,12 +338,12 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                             </div>
                         </div>
 
-                        {/* xe bus đang chọn (CẬP NHẬT) */}
+                        {}
                         <div className="card bus-selected-card">
                             <h3 className="card-title">Xe buýt đang chọn</h3>
                             {selectedBusDetails ? (
                                 <>
-                                    {/* SỬ DỤNG bien_so_xe */}
+                                    {}
                                     <p className="text-xl font-bold mb-2">Biển số: {selectedBusDetails.bien_so_xe}</p>
                                     <p className="mb-4 text-status-color" style={{color: getStatusColor(getStatusInfo(selectedBusDetails).statusName)}}>
                                         <span className="status-dot" style={{backgroundColor: getStatusColor(getStatusInfo(selectedBusDetails).statusName)}}></span> {getStatusInfo(selectedBusDetails).statusText}
@@ -425,7 +416,7 @@ function Dashboard({ isLoaded, loadError, onNavigate }) { // 1. Nhận prop onNa
                     {/*Card Lịch trình */}
                     <div className="card schedule-card">
                         <h3 className="card-title">Lịch trình:</h3>
-                        {/* 2. Thêm sự kiện onClick */}
+                        {/*Thêm sự kiện onClick */}
                         <button 
                             className="schedule-btn" 
                             onClick={() => onNavigate('schedule')}>
