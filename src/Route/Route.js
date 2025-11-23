@@ -201,6 +201,19 @@ const Routes = ({ isLoaded, loadError }) => {
     // #endregion
 
     // #region Hàm phụ trợ
+
+    // REGION: CÁCH TÍNH THỜI GIAN ĐẾN (ETA)
+    // - Nếu có dữ liệu từ Directions API: dùng getEtaFromDirections để lấy tổng thời gian di chuyển thực tế theo tuyến đường (legs).
+    // - Nếu không có dữ liệu route thực tế: dùng calculateETA, tính ETA dựa vào tốc độ hiện tại của xe và khoảng cách đến điểm cuối tuyến (haversineDistance).
+    // - ETA = (quãng đường / tốc độ) * 60 (phút)
+    // - Nếu speed <= 0 hoặc thiếu dữ liệu: trả về 'N/A'.
+
+    // REGION: CÁCH ROUTING TÌM ĐƯỜNG ĐI
+    // - Sử dụng leaflet-routing-machine để vẽ tuyến đường giữa các điểm dừng (stops).
+    // - Tạo các waypoint từ danh sách stops (tọa độ lat/lng).
+    // - Routing sẽ tự động tìm đường đi ngắn nhất giữa các waypoint trên bản đồ.
+    // - Khi stops thay đổi hoặc component unmount, tự động cleanup tuyến đường cũ.
+
     // Lấy thời gian đến dự kiến từ Directions API
     function getEtaFromDirections(directions) {
     // Hàm lấy thời gian đến dự kiến từ Directions API (nếu dùng)
@@ -223,14 +236,20 @@ const Routes = ({ isLoaded, loadError }) => {
         function haversineDistance(lat1, lon1, lat2, lon2) {
             // Hàm tính khoảng cách giữa 2 tọa độ (km) theo công thức Haversine
             // Dùng cho tính ETA đơn giản khi không có dữ liệu route thực tế
-            const R = 6371; // bán kính Trái Đất (km)
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const R = 6371; // Bán kính Trái Đất (km)
+            // Chuyển đổi độ sang radian cho vĩ độ và kinh độ
+            const dLat = (lat2 - lat1) * Math.PI / 180; // Độ chênh lệch vĩ độ (radian)
+            const dLon = (lon2 - lon1) * Math.PI / 180; // Độ chênh lệch kinh độ (radian)
+            // Tính giá trị a theo công thức Haversine
+            // a = sin²(Δlat/2) + cos(lat1) * cos(lat2) * sin²(Δlon/2)
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                                Math.sin(dLon/2) * Math.sin(dLon/2);
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            // Tính giá trị c: khoảng cách góc giữa 2 điểm trên mặt cầu
+            // c = 2 * atan2(√a, √(1−a))
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c; // km
+            // Khoảng cách thực tế giữa 2 điểm (km)
+            return R * c;
         }
 
         function calculateETA(bus, destination) {
