@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -153,6 +154,40 @@ app.get('/schedules', (req, res) => {
     res.json(results);
   });
 });
+// Tìm kiếm lịch trình theo ngày, tài xế, mã xe buýt
+app.get('/schedules/search', (req, res) => {
+  const { ngay, tai_xe_id, xe_bus_id } = req.query;
+  let query = `SELECT t.id, td.ten_tuyen_duong, tx.ho_ten AS tai_xe, xb.bien_so_xe, t.ngay, t.gio_xuat_phat, t.thu
+               FROM trip t
+               JOIN tuyenduong td ON t.tuyen_duong_id = td.id
+               JOIN taixe tx ON t.tai_xe_id = tx.id
+               JOIN xebus xb ON t.xe_bus_id = xb.id`;
+  const conditions = [];
+  const params = [];
+  if (ngay) {
+    conditions.push('t.ngay = ?');
+    params.push(ngay);
+  }
+  if (tai_xe_id) {
+    conditions.push('t.tai_xe_id = ?');
+    params.push(tai_xe_id);
+  }
+  if (xe_bus_id) {
+    conditions.push('t.xe_bus_id = ?');
+    params.push(xe_bus_id);
+  }
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY t.gio_xuat_phat';
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error('Lỗi truy vấn tìm kiếm schedules:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi tìm kiếm lịch trình.' });
+    }
+    res.json(results);
+  });
+});
 
 // Endpoint lấy danh sách tài xế
 app.get('/drivers', (req, res) => {
@@ -166,7 +201,17 @@ app.get('/drivers', (req, res) => {
   });
 });
 
-// Endpoint mới để lấy dữ liệu KPIs (Tổng quan)
+// Endpoint lấy dữ liệu log xe buýt
+app.get('/logxebus', (req, res) => {
+  const query = 'SELECT * FROM logxebus ORDER BY thoi_gian DESC';
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Lỗi truy vấn logxebus:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu log xe buýt.' });
+    }
+    res.json(results);
+  });
+});
 app.get('/kpis', async (req, res) => {
   try {
     const [busResults] = await db.promise().query('SELECT COUNT(*) as totalBuses FROM xebus');
@@ -194,34 +239,98 @@ app.get('/kpis', async (req, res) => {
     res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu KPIs.' });
   }
 });
-
-
 // Endpoint lấy danh sách học sinh
 // Endpoint tạo mới lịch trình (trip)
 app.post('/schedules', (req, res) => {
-  const {
+  let {
     tuyen_duong_id,
+    ten_tuyen_duong,
     tai_xe_id,
+    ten_tai_xe,
     xe_bus_id,
+    bien_so_xe,
     ngay,
     gio_xuat_phat,
     thu
   } = req.body;
 
-  if (!tuyen_duong_id || !tai_xe_id || !xe_bus_id || !ngay || !gio_xuat_phat || !thu) {
-    return res.status(400).json({ message: 'Thiếu thông tin lịch trình.' });
+  // Hàm tra id cho từng trường nếu client gửi tên
+  function getRouteId(cb) {
+    if (tuyen_duong_id) return cb(null, tuyen_duong_id);
+    if (ten_tuyen_duong) {
+      db.query('SELECT id FROM tuyenduong WHERE ten_tuyen_duong = ? LIMIT 1', [ten_tuyen_duong], (err, results) => {
+        if (err) return cb(err);
+        if (results.length === 0) return cb(new Error('Không tìm thấy tuyến đường.'));
+        cb(null, results[0].id);
+      });
+    } else {
+      cb(new Error('Thiếu thông tin tuyến đường.'));
+    }
+  }
+  function getDriverId(cb) {
+    if (tai_xe_id) return cb(null, tai_xe_id);
+    if (ten_tai_xe) {
+      db.query('SELECT id FROM taixe WHERE ho_ten = ? LIMIT 1', [ten_tai_xe], (err, results) => {
+        if (err) return cb(err);
+        if (results.length === 0) return cb(new Error('Không tìm thấy tài xế.'));
+        cb(null, results[0].id);
+      });
+    } else {
+      cb(new Error('Thiếu thông tin tài xế.'));
+    }
+  }
+  function getBusId(cb) {
+    if (xe_bus_id) return cb(null, xe_bus_id);
+    if (bien_so_xe) {
+      db.query('SELECT id FROM xebus WHERE bien_so_xe = ? LIMIT 1', [bien_so_xe], (err, results) => {
+        if (err) return cb(err);
+        if (results.length === 0) return cb(new Error('Không tìm thấy xe buýt.'));
+        cb(null, results[0].id);
+      });
+    } else {
+      cb(new Error('Thiếu thông tin xe buýt.'));
+    }
   }
 
-  const query = `INSERT INTO trip (tuyen_duong_id, tai_xe_id, xe_bus_id, ngay, gio_xuat_phat, thu)
-                 VALUES (?, ?, ?, ?, ?, ?)`;
-  db.query(query, [tuyen_duong_id, tai_xe_id, xe_bus_id, ngay, gio_xuat_phat, thu], (err, result) => {
-    if (err) {
-      console.error('Lỗi tạo lịch trình:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ khi tạo lịch trình.' });
-    }
-    res.json({ message: 'Tạo lịch trình thành công!', id: result.insertId });
+  // Thực hiện tra id tuần tự
+  getRouteId((err, routeId) => {
+    if (err) return res.status(400).json({ message: err.message });
+    getDriverId((err2, driverId) => {
+      if (err2) return res.status(400).json({ message: err2.message });
+      getBusId((err3, busId) => {
+        if (err3) return res.status(400).json({ message: err3.message });
+        if (!routeId || !driverId || !busId || !ngay || !gio_xuat_phat || !thu) {
+          return res.status(400).json({ message: 'Thiếu thông tin lịch trình.' });
+        }
+        const query = `INSERT INTO trip (tuyen_duong_id, tai_xe_id, xe_bus_id, ngay, gio_xuat_phat, thu)
+                       VALUES (?, ?, ?, ?, ?, ?)`;
+        db.query(query, [routeId, driverId, busId, ngay, gio_xuat_phat, thu], (err, result) => {
+          if (err) {
+            console.error('Lỗi tạo lịch trình:', err);
+            return res.status(500).json({ message: 'Lỗi máy chủ khi tạo lịch trình.' });
+          }
+          res.json({ message: 'Tạo lịch trình thành công!', id: result.insertId });
+        });
+      });
+    });
   });
 });
+// Xóa lịch trình theo id
+app.delete('/trip/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'DELETE FROM trip WHERE id = ?';
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error('Lỗi xóa lịch trình:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi xóa lịch trình.' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy lịch trình.' });
+    }
+    res.json({ message: 'Xóa lịch trình thành công!' });
+  });
+});
+// Endpoint lấy danh sách học sinh
 app.get('/students', (req, res) => {
   const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
   db.query(query, (err, results) => {
