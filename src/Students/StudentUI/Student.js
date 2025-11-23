@@ -4,12 +4,12 @@ const Students = () => {
    const [hocsinh,setHocsinh] = useState([]);
    useEffect(() => {
        const fetchData = async () => {
-           const response = await fetch("http://localhost:8080/student");
+           const response = await fetch("http://localhost:5000/students");
            const data = await response.json();
            setHocsinh(data);
        }
        fetchData();
-   })
+   }, [])
     const getStatusClass = (status) => {
         switch (status) {
             case 'Đã đón':

@@ -44,6 +44,7 @@ const LoginModal = ({ onClose, onOpenSignup, onLoginSuccess }) => {
             const data = await response.json();
 
                 if (response.ok) {
+                    localStorage.setItem("role", data.user.role);   //LƯU ROLE
                     setMessage(data.message);
                     setMessageType("success");
                     console.log("Login success user object:", data.user);

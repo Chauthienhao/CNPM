@@ -43,7 +43,7 @@ function App() {
       case 'route':
         return <Route isLoaded={isLoaded} loadError={loadError} />;
       case 'notification':
-        return <ThongBao />;
+        return <ThongBao currentRole={currentRole} />;
       case 'dashboard':
         return <Dashboard isLoaded={isLoaded} loadError={loadError} onNavigate={handleMenuClick} />;
       case 'student':
