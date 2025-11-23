@@ -73,29 +73,30 @@ const Schedule = () => {
       alert('Vui lòng nhập đầy đủ tuyến đường, tài xế, xe buýt và ngày!');
       return;
     }
-    // Tìm id tuyến đường
+    // Tìm id tuyến đường nếu đã có, nếu chưa thì gửi tên lên backend
     const route = schedules.find(sch => sch.ten_tuyen_duong === routeName);
     const tuyen_duong_id = route ? route.id : null;
-    if (!tuyen_duong_id) {
-      alert('Không tìm thấy tuyến đường hợp lệ!');
-      return;
-    }
     // Cho nhập giờ xuất phát
     const gio_xuat_phat = prompt('Nhập giờ xuất phát (hh:mm):', '08:00');
     if (!gio_xuat_phat) return;
     const thu = new Date(selectedDate).getDay().toString();
     try {
+      const body = {
+        tai_xe_id: driverId,
+        xe_bus_id: busId,
+        ngay: selectedDate,
+        gio_xuat_phat,
+        thu
+      };
+      if (tuyen_duong_id) {
+        body.tuyen_duong_id = tuyen_duong_id;
+      } else {
+        body.ten_tuyen_duong = routeName;
+      }
       const res = await fetch('http://localhost:5000/schedules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tuyen_duong_id,
-          tai_xe_id: driverId,
-          xe_bus_id: busId,
-          ngay: selectedDate,
-          gio_xuat_phat,
-          thu
-        })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (res.ok) {
@@ -303,6 +304,7 @@ const Schedule = () => {
           <div className="sidebar-buttons" style={{display:'flex', gap:'10px'}}>
             <button className="btn-save" onClick={handleSave}>Xác nhận</button>
             <button className="btn-cancel" onClick={handleSearch}>Tìm kiếm</button>
+            <button className="btn-cancel" onClick={handleCancel}>Hủy</button>
             <button className="btn-cancel" onClick={handleDelete}>Xóa</button>
           </div>
         </aside>
