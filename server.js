@@ -54,17 +54,24 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/dashboard-info',(req, res)=>{
-  const query = `SELECT 
-        xb.*,
-        tx.ho_ten
+  // Lấy tất cả xe buýt và join với chuyến đi gần nhất để lấy tên tài xế
+  const query = `
+    SELECT 
+        xb.id, 
+        xb.bien_so_xe, 
+        xb.latitude, 
+        xb.longitude, 
+        xb.speed, 
+        xb.status,  
+        xb.tuyen_duong_id, 
+        tx.ho_ten AS ten_tai_xe
     FROM 
-        trip t
-    INNER JOIN 
-        xebus xb ON t.xe_bus_id = xb.id
-    INNER JOIN 
+        xebus xb
+    LEFT JOIN 
+        (SELECT *, ROW_NUMBER() OVER(PARTITION BY xe_bus_id ORDER BY ngay DESC, id DESC) as rn FROM trip) t ON xb.id = t.xe_bus_id AND t.rn = 1
+    LEFT JOIN 
         taixe tx ON t.tai_xe_id = tx.id
-    WHERE
-        t.ngay = CURDATE();`;
+  `;
   db.query(query, (err, results)=>{
     if (err) {
       console.error('Lỗi truy vấn:', err);
