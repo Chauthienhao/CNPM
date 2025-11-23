@@ -8,7 +8,7 @@ import Dashboard from './Dashboard/Dashboard';
 import Schedule from './Schedule/Schedule';
 import ThongBao from './ThongBao/Notification';
 import { useJsApiLoader } from '@react-google-maps/api';
-import Students from './Students/Student';
+import Students from './Students/StudentUI/Student';
 import Taixe from './Taixe/Taixe';
 
 // Định nghĩa menu cho từng role

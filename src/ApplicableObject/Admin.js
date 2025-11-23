@@ -1,6 +1,6 @@
 import React from 'react';
 import Schedule from '../Schedule/Schedule';
-import Students from '../Students/Student';
+import Students from '../Students/StudentUI/Student';
 import ThongBao from '../ThongBao/Notification';
 import Route from '../Route/Route';
 import Taixe from '../Taixe/Taixe';
