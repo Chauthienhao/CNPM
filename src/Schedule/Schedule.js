@@ -14,6 +14,9 @@ const Schedule = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
+  // Thêm state lưu id lịch trình được chọn
+  const [selectedScheduleId, setSelectedScheduleId] = useState(null);
 
   useEffect(() => {
     // Fetch dữ liệu từ API backend
@@ -51,9 +54,83 @@ const Schedule = () => {
     fetchData();
   }, []);
 
-  const handleSave = () => {
-    console.log({ routeName, driverId, busId, studentId });
-    alert('Đã lưu thông tin!');
+  // Hàm fetch lại lịch trình từ server
+  const fetchSchedules = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/schedules');
+      const data = await res.json();
+      if (res.ok) {
+        setSchedules(data);
+      }
+    } catch (err) {
+      // Có thể xử lý lỗi nếu cần
+    }
+  };
+
+  // Hàm xác nhận: thêm lịch trình vào DB khi đủ dữ kiện (trừ học sinh)
+  const handleSave = async () => {
+    if (!routeName || !driverId || !busId || !selectedDate) {
+      alert('Vui lòng nhập đầy đủ tuyến đường, tài xế, xe buýt và ngày!');
+      return;
+    }
+    // Tìm id tuyến đường
+    const route = schedules.find(sch => sch.ten_tuyen_duong === routeName);
+    const tuyen_duong_id = route ? route.id : null;
+    if (!tuyen_duong_id) {
+      alert('Không tìm thấy tuyến đường hợp lệ!');
+      return;
+    }
+    // Cho nhập giờ xuất phát
+    const gio_xuat_phat = prompt('Nhập giờ xuất phát (hh:mm):', '08:00');
+    if (!gio_xuat_phat) return;
+    const thu = new Date(selectedDate).getDay().toString();
+    try {
+      const res = await fetch('http://localhost:5000/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tuyen_duong_id,
+          tai_xe_id: driverId,
+          xe_bus_id: busId,
+          ngay: selectedDate,
+          gio_xuat_phat,
+          thu
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Thêm lịch trình thành công!');
+        await fetchSchedules(); // Reload lại danh sách lịch trình
+      } else {
+        alert(data.message || 'Lỗi thêm lịch trình!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
+  };
+
+  // Hàm xóa lịch trình đang được chọn
+  const handleDelete = async () => {
+    if (!selectedScheduleId) {
+      alert('Vui lòng chọn lịch trình để xóa!');
+      return;
+    }
+    if (!window.confirm('Bạn có chắc muốn xóa lịch trình này?')) return;
+    try {
+      const res = await fetch(`http://localhost:5000/trip/${selectedScheduleId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Xóa lịch trình thành công!');
+        await fetchSchedules(); // Reload lại danh sách lịch trình
+        setSelectedScheduleId(null);
+      } else {
+        alert(data.message || 'Lỗi xóa lịch trình!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
   };
 
   const handleCancel = () => {
@@ -83,6 +160,34 @@ const Schedule = () => {
     return days;
   };
 
+  // Hàm tìm kiếm lịch trình từ server
+  const handleSearch = async () => {
+    if (!selectedDate && !driverId && !busId) {
+      alert('Vui lòng chọn ít nhất một điều kiện tìm kiếm (ngày, tài xế hoặc mã xe buýt)');
+      return;
+    }
+    const params = [];
+    if (selectedDate) params.push(`ngay=${selectedDate}`);
+    if (driverId) params.push(`tai_xe_id=${driverId}`);
+    if (busId) params.push(`xe_bus_id=${busId}`);
+    const queryString = params.length > 0 ? '?' + params.join('&') : '';
+    try {
+      const res = await fetch(`http://localhost:5000/schedules/search${queryString}`);
+      const data = await res.json();
+      if (res.ok) {
+        if (data.length === 0) {
+          alert('Không tìm thấy lịch trình phù hợp!');
+        } else {
+          alert('Kết quả tìm kiếm:\n' + data.map(sch => `${sch.ten_tuyen_duong} - ${sch.tai_xe} - ${sch.bien_so_xe} - ${sch.ngay} ${sch.gio_xuat_phat}`).join('\n'));
+        }
+      } else {
+        alert(data.message || 'Lỗi tìm kiếm!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối server!');
+    }
+  };
+
   const weekdays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
   const daySchedules = groupByWeekday();
 
@@ -96,14 +201,6 @@ const Schedule = () => {
               className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`} 
               onClick={() => setSelectedTab('routes')}
             >Tất cả tuyến đường</button>
-            <button 
-              className={`tab-btn ${selectedTab === 'monthly' ? 'active' : ''}`} 
-              onClick={() => setSelectedTab('monthly')}
-            >Hàng tháng</button>
-            <button 
-              className={`tab-btn ${selectedTab === 'buses' ? 'active' : ''}`} 
-              onClick={() => setSelectedTab('buses')}
-            >Tất cả xe buýt</button>
           </div>
           {loading ? (
             <div className="loading-state">Đang tải dữ liệu...</div>
@@ -124,6 +221,7 @@ const Schedule = () => {
                         key={item.id} 
                         className="schedule-item"
                         onClick={() => {
+                          setSelectedScheduleId(item.id);
                           setRouteName(item.ten_tuyen_duong);
                           // Tìm id tài xế từ danh sách drivers dựa vào tên
                           const driver = drivers.find(d => d.ho_ten === item.tai_xe);
@@ -132,6 +230,7 @@ const Schedule = () => {
                           const bus = buses.find(b => b.bien_so_xe === item.bien_so_xe);
                           setBusId(bus ? bus.id : '');
                           setStudentId(item.student_id || '');
+                          setSelectedDate(item.ngay);
                         }}
                       >
                         <div className="route-name">{item.ten_tuyen_duong}</div>
@@ -148,11 +247,25 @@ const Schedule = () => {
         </div>
         <aside className="schedule-sidebar">
           <div className="sidebar-section">
-            <h3>Chi tiết:</h3>
-            <label>Tên tuyến đường</label>
-            <div className="readonly-field">
-              {routeName || 'Chọn tuyến từ bản đồ'}
-            </div>
+              <h3>Chi tiết:</h3>
+              {/* Bộ lọc ngày phía trên tên tuyến đường */}
+              <label>Lọc theo ngày:</label>
+              <input
+                type="date"
+                className="dropdown"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                style={{marginBottom: '10px'}}
+              />
+              <label>Tên tuyến đường</label>
+              <input
+                type="text"
+                className="dropdown"
+                value={routeName}
+                onChange={e => setRouteName(e.target.value)}
+                placeholder="Nhập tên tuyến đường"
+                style={{marginBottom: '10px'}}
+              />
             <label>Tài xế:</label>
             <select
               className="dropdown"
@@ -187,9 +300,10 @@ const Schedule = () => {
               ))}
             </select>
           </div>
-          <div className="sidebar-buttons">
-            <button className="btn-save" onClick={handleSave}>Lưu</button>
-            <button className="btn-cancel" onClick={handleCancel}>Hủy</button>
+          <div className="sidebar-buttons" style={{display:'flex', gap:'10px'}}>
+            <button className="btn-save" onClick={handleSave}>Xác nhận</button>
+            <button className="btn-cancel" onClick={handleSearch}>Tìm kiếm</button>
+            <button className="btn-cancel" onClick={handleDelete}>Xóa</button>
           </div>
         </aside>
       </div>
