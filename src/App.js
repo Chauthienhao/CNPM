@@ -1,6 +1,7 @@
 import './App.css';
 import LoginModal from './components/Authentication/LoginModal';  
 import SideBar from './LeftSideBar/SideBar';
+// import useState only once
 import { useState } from 'react';
 import Header from './Header/Header';
 import Route from './Route/Route';
@@ -10,6 +11,7 @@ import ThongBao from './ThongBao/Notification';
 import { useJsApiLoader } from '@react-google-maps/api';
 import Students from './Students/Student';
 import Taixe from './Taixe/Taixe';
+
 
 // Định nghĩa menu cho từng role
 const ROLE_MENUS = {
@@ -21,9 +23,14 @@ const ROLE_MENUS = {
 function App() {
   const [activeMenu, setActiveMenu] = useState('schedule');
   // cần khai báo state để theo dõi đăng nhập
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // Hardcode role để test 
-  const currentRole = 'admin'; 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Thêm user state lưu thông tin người dùng
+  const [user, setUser] = useState(null);
+
+  // Add state for current user role
+  const [currentRole, setCurrentRole] = useState(null);
+
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
   };
@@ -58,17 +65,27 @@ function App() {
   if (loadError) {
     return <div>Lỗi tải API Google Maps</div>;
   }
-  // 3. Tạo hàm xử lý khi đăng nhập thành công
-  const handleLoginSuccess = () => {
+  
+  // Hàm xử lý khi đăng nhập thành công, nhận user object
+  const handleLoginSuccess = (user) => {
+    console.log("handleLoginSuccess called with user:", user);
     setIsLoggedIn(true);
+    if (user && user.role) {
+      setCurrentRole(user.role);
+    } else {
+      console.warn("User object or role missing in handleLoginSuccess");
+    }
+    setUser(user);
   };
-  
-  if (loadError) {
-    return <div>Lỗi tải API Google Maps</div>;
-  }
-
-  // 4. KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP
-  // Nếu chưa đăng nhập (isLoggedIn là false)
+  
+  // Hàm xử lý đăng xuất
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentRole(null);
+    setUser(null);
+  };
+  
+  // Kiểm tra trạng thái đăng nhập
   if (!isLoggedIn) {
     return (
       <div className="App">
@@ -83,20 +100,33 @@ function App() {
       </div>
     );
   }
+
+  if (isLoggedIn && !currentRole) {
+    return (
+      <div className="App">
+        <div className="Main-app">
+          Đang tải dữ liệu người dùng...
+        </div>
+      </div>
+    );
+  }
+
+ 
   return (
     <div className="App">
-      <Header />
+      <Header username={user ? user.username : ''} onLogout={handleLogout} />
       
       <div className="Main-app">
         <SideBar 
           activeMenu={activeMenu} 
           onMenuClick={handleMenuClick}
-          allowedMenuIds={ROLE_MENUS[currentRole]}
+          allowedMenuIds={ROLE_MENUS[currentRole] || []}
         />
         <div className="Main-content">{renderContent()}</div>
       </div>
     </div>
   );
 }
+
 
 export default App;

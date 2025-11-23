@@ -16,7 +16,7 @@ app.post('/login', (req, res) => {
     return res.status(400).json({ message: 'Username và password là bắt buộc.' });
   }
 
-  const query = 'SELECT * FROM TaiKhoan WHERE username = ?';
+  const query = 'SELECT * FROM taikhoan WHERE username = ?';
   db.query(query, [username], (err, results) => {
     if (err) {
       console.error('Lỗi truy vấn:', err);
@@ -28,9 +28,16 @@ app.post('/login', (req, res) => {
     }
 
     const user = results[0];
+    console.log("User row retrieved from DB:", JSON.stringify(user, null, 2));
+    // Prepare user object to send, set default role if missing
+    const responseUser = {
+      id: user.id,
+      username: user.username,
+      role: user.role || 'admin',
+    };
     // So sánh mật khẩu trực tiếp vì trong DB là plain text
     if (password === user.password_hash) {
-      res.json({ message: 'Đăng nhập thành công!', user: { id: user.id, username: user.username } });
+      res.json({ message: 'Đăng nhập thành công!', user: responseUser });
     } else {
       res.status(401).json({ message: 'Mật khẩu không đúng.' });
     }
