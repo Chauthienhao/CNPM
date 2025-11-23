@@ -1,7 +1,7 @@
 import db from "../../config/db.js";
 export const getallphuhuynh = async () => {
     try {
-        const [rows] = await db.execute("Select * from phuhuynh where TT=1");
+        const [rows] = await db.execute("Select * from phuhuynh where status=1");
         return rows;
     } catch (err) {
         console.log(err);
@@ -19,7 +19,7 @@ export const getallphuhuynh = async () => {
 }
 export const delph = async (id) => {
     try{
-        await db.execute("DELETE FROM phuhuynh WHERE id = ?",[id]);
+        await db.execute("UPDATE  phuhuynh SET status = 2 WHERE id = ?",[id]);
     }
     catch(err){
         console.log(err);
@@ -40,7 +40,7 @@ export const updatephuhuynh = async (phuhuynh) => {
 }
 export const findphuhuynh = async (hoten) => {
     try{
-        const [rows] =await db.execute("SELECT * from phuhuynh where  ho_ten like ? and TT = 1", [`%${hoten}%`]);
+        const [rows] =await db.execute("SELECT * from phuhuynh where  ho_ten like ? and status = 1", [`%${hoten}%`]);
         return rows;
     }
     catch(err){

@@ -5,12 +5,7 @@ const EditPhuHuynhform = ({id,close,resetdata}) =>{
     const [email, setEmail] = useState("");
     const [sdt, setSdt] = useState("");
     const [address, setAddress] = useState("");
-    const resetform = () =>{
-        setName("");
-        setEmail("");
-        setSdt("");
-        setAddress("");
-    }
+
     const handleSubmit = async (e) =>{
         e.preventDefault();
         const phuhuynh = {ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
@@ -59,8 +54,8 @@ const EditPhuHuynhform = ({id,close,resetdata}) =>{
                         <input className="border-1 border-black rounded-1 p-1 h-[4vh]" value={address} onChange={(e) => setAddress(e.target.value)}/>
                     </div>
                     <div className="flex justify-content-center w-[40vw] mt-[1vh]">
-                        <button  className="border-2 border-black mr-[4vw] p-2 w-[5vw] rounded-2 bg-blue-500 text-white "onClick={(e)=>{handleSubmit(e)}} >Thêm</button>
-                        <button className="border-2 border-black p-2 w-[5vw] rounded-2 bg-red-500 text-white" onClick={(e)=>{e.preventDefault();close();resetform()}}>Hủy</button>
+                        <button  className="border-2 border-black mr-[4vw] p-2 w-[5vw] rounded-2 bg-blue-500 text-white "onClick={(e)=>{handleSubmit(e);}} >Thêm</button>
+                        <button className="border-2 border-black p-2 w-[5vw] rounded-2 bg-red-500 text-white" onClick={(e)=>{e.preventDefault();close();}}>Hủy</button>
                     </div>
                 </form>
 

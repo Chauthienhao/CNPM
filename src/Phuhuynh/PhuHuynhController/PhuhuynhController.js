@@ -17,7 +17,7 @@ export const getallph = async (req, res) => {
     }
 }
 export const themph = async (req, res) => {
-    const phuhuynh={ho_ten:req.body.ho_ten,email:req.body.email,so_dien_thoai:req.body.so_dien_thoai,dia_chi:req.body.dia_chi};
+    const phuhuynh={tai_khoan_id:req.body.tai_khoan_id,ho_ten:req.body.ho_ten,email:req.body.email,so_dien_thoai:req.body.so_dien_thoai,dia_chi:req.body.dia_chi};
     try{
         await insertphuhuynh(phuhuynh);
         res.json(phuhuynh);

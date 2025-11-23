@@ -1,26 +1,32 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 
-const AddStudentform = ({resetdata,close}) =>{
+const EditStudentForm = ({id,resetdata,close}) =>{
     const [name,setName] = useState("");
     const [email, setEmail] = useState("");
     const [status, setStatus] = useState("Chưa đón");
     const [phid, setPhid] = useState("");
-    const resetform = () =>{
-        setName("");
-        setEmail("");
-        setStatus("Chưa đón");
-        setPhid("");
-    }
+    useEffect(() => {
+        const loaddata = async () => {
+            const response =await fetch(`http://localhost:8080/student/${id}`);
+            const data= await response.json();
+            console.log(data);
+            setName(data[0].ho_ten);
+            setEmail(data[0].email);
+            setStatus(data[0].status);
+            setPhid(data[0].phu_huynh_id);
+        }
+        loaddata();
+    },[id])
     const handleSubmit = (e) =>{
         e.preventDefault();
-        const hocsinh = {phu_huynh_id:phid,ho_ten:name,email:email,status:status};
-        fetch('http://localhost:8080/student', {
-            method: 'POST',
+        const hocsinh = {id:id,phu_huynh_id:phid,ho_ten:name,email:email,status:status};
+        fetch(`http://localhost:8080/student/${id}`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(hocsinh)
-        }).then(()=>{resetform()}).then(()=>{resetdata()}).then(()=>{close()})
+        }).then(()=>{resetdata()}).then(()=>{close()})
 
     }
     return(
@@ -51,7 +57,7 @@ const AddStudentform = ({resetdata,close}) =>{
 
                     <div className="flex justify-content-center w-[40vw] mt-[1vh]">
                         <button  className="border-2 border-black mr-[4vw] p-2 w-[5vw] rounded-2 bg-blue-500 text-white "onClick={(e)=>{handleSubmit(e)}} >Thêm</button>
-                        <button className="border-2 border-black p-2 w-[5vw] rounded-2 bg-red-500 text-white" onClick={(e)=>{e.preventDefault();resetform();close()}}>Hủy</button>
+                        <button className="border-2 border-black p-2 w-[5vw] rounded-2 bg-red-500 text-white" onClick={(e)=>{e.preventDefault();close()}}>Hủy</button>
                     </div>
                 </form>
 
@@ -59,4 +65,4 @@ const AddStudentform = ({resetdata,close}) =>{
         </>
     )
 }
-export default AddStudentform;
+export default EditStudentForm;

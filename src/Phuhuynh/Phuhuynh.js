@@ -65,19 +65,10 @@ const Phuhuynh = () => {
                 const res = await fetch(`http://localhost:8080/phuhuynh/${id}`, {
                     method: 'DELETE',
                 });
-
-                if (!res.ok) {
-                    throw new Error("Xóa thất bại");
+                if(res.ok){
+                    window.alert("Đã xóa thành công");
+                    fetchData();
                 }
-
-                const result = await res.json(); // nếu backend trả json, còn không thì bỏ
-                if (result.affectedRows && result.affectedRows > 0) {
-                    alert("Đã xóa thành công");
-                    fetchData(); // reload lại dữ liệu
-                } else {
-                    alert("Không tìm thấy bản ghi để xóa");
-                }
-
             } catch (err) {
                 console.error(err);
                 alert("Xóa thất bại!");
@@ -103,6 +94,7 @@ const Phuhuynh = () => {
                     <thead>
                     <tr>
                         <th>ID Phụ Huynh</th>
+                        <td>ID Tài Khoản</td>
                         <th>Tên Phụ Huynh</th>
                         <th>Email</th>
                         <th>Số Điện Thoại</th>
@@ -114,19 +106,20 @@ const Phuhuynh = () => {
                     {Phuhuynh.map((ph) => (
                         <tr key={ph.id}>
                             <td>{ph.id}</td>
+                            <td>{ph.tai_khoan_id}</td>
                             <td>{ph.ho_ten}</td>
                             <td>{ph.email}</td>
                             <td>{ph.so_dien_thoai}</td>
                             <td>{ph.dia_chi}</td>
 
-                            <td><button className="edit-btn" onClick={()=>{setId(ph.id.toString());openeditform()}}>Sửa</button> <button className="delete-btn" onClick={()=>{setId(ph.id.toString());deletee(id);  }}>Xóa</button></td>
+                            <td><button className="edit-btn" onClick={()=>{setId(ph.id.toString());openeditform()}}>Sửa</button> <button className="delete-btn" onClick={()=>{deletee(ph.id.toString());  }}>Xóa</button></td>
                         </tr>
                     ))}
                     </tbody>
                 </table>
             </div>
             </div>
-            <div className="border-2 rounded-2 absolute top-[20%] left-[30%] w-[45vw] h-[50vh] bg-white hidden" ref={addform}>
+            <div className="border-2 rounded-2 absolute top-[20%] left-[30%] w-[45vw] h-[55vh] bg-white hidden" ref={addform}>
             <AddPhuHuynhform close={closeform} resetdata={fetchData} />
 
             </div>

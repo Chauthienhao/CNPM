@@ -5,6 +5,7 @@ const AddPhuHuynhform = ({close,resetdata}) =>{
     const [email, setEmail] = useState("");
     const [sdt, setSdt] = useState("");
     const [address, setAddress] = useState("");
+    const [id, setId] = useState("");
     const resetform = () =>{
         setName("");
         setEmail("");
@@ -13,7 +14,7 @@ const AddPhuHuynhform = ({close,resetdata}) =>{
     }
     const handleSubmit = (e) =>{
         e.preventDefault();
-        const phuhuynh = {ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
+        const phuhuynh = {tai_khoan_id: id,ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
         fetch('http://localhost:8080/phuhuynh', {
             method: 'POST',
             headers: {
@@ -44,10 +45,15 @@ const AddPhuHuynhform = ({close,resetdata}) =>{
                     <label className="mr-[4.7vw] font-bold">Địa Chỉ:</label>
                     <input className="border-1 border-black rounded-1 p-1 h-[4vh]" value={address} onChange={(e) => setAddress(e.target.value)}/>
                 </div>
+                <div className="m-[2vh]">
+                    <label className="mr-[2vw] font-bold">ID Tài Khoản:</label>
+                    <input className="border-1 border-black rounded-1 p-1 h-[4vh]" value={id} onChange={(e) => setId(e.target.value)}/>
+                </div>
                 <div className="flex justify-content-center w-[40vw] mt-[1vh]">
                     <button  className="border-2 border-black mr-[4vw] p-2 w-[5vw] rounded-2 bg-blue-500 text-white "onClick={(e)=>{handleSubmit(e)}} >Thêm</button>
                 <button className="border-2 border-black p-2 w-[5vw] rounded-2 bg-red-500 text-white" onClick={(e)=>{e.preventDefault();close();resetform()}}>Hủy</button>
                 </div>
+
             </form>
 
             </div>
