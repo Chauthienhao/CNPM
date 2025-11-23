@@ -1,6 +1,6 @@
-import {useState} from "react";
-
-const AddStudentform = () =>{
+import './EditPhuHuynhform.css'
+import {useEffect, useState} from "react";
+const EditPhuHuynhform = ({id,close,resetdata}) =>{
     const [name,setName] = useState("");
     const [email, setEmail] = useState("");
     const [sdt, setSdt] = useState("");
@@ -11,21 +11,35 @@ const AddStudentform = () =>{
         setSdt("");
         setAddress("");
     }
-    // const handleSubmit = (e) =>{
-    //     e.preventDefault();
-    //     const phuhuynh = {ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
-    //     fetch('http://localhost:8080/phuhuynh', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json'
-    //         },
-    //         body: JSON.stringify(phuhuynh)
-    //     }).then(()=>{resetform()}).then(()=>{resetdata()}).then(()=>{close()})
-    //
-    // }
+    const handleSubmit = async (e) =>{
+        e.preventDefault();
+        const phuhuynh = {ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
+        await fetch(`http://localhost:8080/phuhuynh/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(phuhuynh)
+        }).then(()=>resetdata()).then(()=>{close()})
+
+
+    }
+
+    useEffect(() => {
+        const loaddata = async () => {
+            const response =await fetch(`http://localhost:8080/phuhuynh/${id}`);
+            const data= await response.json();
+            console.log(data);
+            setName(data[0].ho_ten);
+            setEmail(data[0].email);
+            setSdt(data[0].so_dien_thoai);
+            setAddress(data[0].dia_chi);
+        }
+        loaddata();
+    },[id])
+
     return(
         <>
-
             <div className="p-[5%] flex justify-content-lg-start">
                 <form className="flex flex-col">
                     <div className="m-[2vh]">
@@ -54,4 +68,4 @@ const AddStudentform = () =>{
         </>
     )
 }
-export default AddStudentform;
+export default EditPhuHuynhform

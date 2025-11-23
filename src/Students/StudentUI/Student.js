@@ -1,5 +1,6 @@
 import "./Student.css"
 import {useEffect, useState} from "react";
+import AddStudentform from "./AddStudentform.jsx";
 const Students = () => {
    const [hocsinh,setHocsinh] = useState([]);
    useEffect(() => {
@@ -58,6 +59,10 @@ const Students = () => {
                     ))}
                     </tbody>
                 </table>
+            </div>
+            <div className="border-2 rounded-2 absolute top-[20%] left-[30%] w-[45vw] h-[50vh] bg-white hidden" ref={addform}>
+                <AddStudentform close={closeform} resetdata={fetchData} />
+
             </div>
         </>
     )

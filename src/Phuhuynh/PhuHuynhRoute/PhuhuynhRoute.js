@@ -1,0 +1,10 @@
+import express from "express";
+import {getallph, suaph, themph, timkiemph, timph, xoaph} from "../PhuHuynhController/PhuhuynhController.js";
+const router = express.Router();
+router.get("/", getallph);
+router.post("/", themph);
+router.get("/:id",timph);
+router.put("/:id",suaph);
+router.delete("/:id",xoaph);
+router.get("/search/:ho_ten",timkiemph);
+export default router;
