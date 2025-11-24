@@ -11,11 +11,12 @@ import ThongBao from './ThongBao/Notification';
 import { useJsApiLoader } from '@react-google-maps/api';
 import Students from './Students/StudentUI/Student';
 import Taixe from './Taixe/Taixe';
+import Phuhuynh from "./Phuhuynh/Phuhuynh";
 
 
 // Định nghĩa menu cho từng role
 const ROLE_MENUS = {
-  admin: ['dashboard','route','driver','student','schedule','notification'],
+  admin: ['dashboard','route','driver','student','phuhuynh','schedule','notification'],
   driver: ['schedule','student','notification','route'],
   parent: ['route','notification','schedule']
 };
@@ -48,6 +49,8 @@ function App() {
         return <Dashboard isLoaded={isLoaded} loadError={loadError} onNavigate={handleMenuClick} />;
       case 'student':
         return <Students/>;
+        case 'phuhuynh':
+          return <Phuhuynh/>
       default:
         return null;
     }

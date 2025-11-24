@@ -7,6 +7,7 @@ import routeIcon from '../Develop/route.png';
 import studentIcon from '../Develop/student.png';
 import scheduleIcon from '../Develop/schedule.png';
 import notificationIcon from '../Develop/notification.png';
+import ParenticonIcon from '../Develop/parents.png';
 
 const SideBar = ({ activeMenu, onMenuClick, allowedMenuIds = null }) => {
   const allMenuItems = [
@@ -14,6 +15,7 @@ const SideBar = ({ activeMenu, onMenuClick, allowedMenuIds = null }) => {
     { id: 'route', icon: routeIcon, label: 'Tuyến đường' },
     { id: 'driver', icon: driverIcon, label: 'Tài xế' },
     { id: 'student', icon: studentIcon, label: 'Học sinh' },
+    {id: 'phuhuynh', icon: ParenticonIcon, label: "Phụ Huynh"},
     { id: 'schedule', icon: scheduleIcon, label: 'Lịch trình' },
     { id: 'notification', icon: notificationIcon, label: 'Thông báo' }
   ];

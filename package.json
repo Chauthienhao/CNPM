@@ -13,12 +13,12 @@
     "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.8",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
+    "express": "^5.1.0",
     "leaflet": "^1.9.4",
     "leaflet-routing-machine": "^3.2.12",
     "mysql2": "^3.11.4",
     "react": "^19.2.0",
-    "react-bootstrap": "^2.10.10",
+    "react-bootstrap": "^2.10 .10",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.4",
@@ -48,5 +48,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18"
   }
 }

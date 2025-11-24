@@ -11,6 +11,10 @@ const PORT = 5000;
 // Google Maps API Key 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY';
 
+import cors from 'cors';
+import StudentsRouter from './src/Students/StudentRoute/StudentRoute.js'
+import PhuhuynhRouter from './src/Phuhuynh/PhuHuynhRoute/PhuhuynhRoute.js'
+app.use(express.json())
 app.use(cors());
 app.use(express.json());
 
@@ -834,3 +838,13 @@ app.post("/notifications/send-all", (req, res) => {
 
   return res.json({ message: "Đã gửi tất cả thông báo thành công!" });
 });
+app.use(express.urlencoded({ extended: true }))
+
+app.use("/student",StudentsRouter);
+app.use("/phuhuynh",PhuhuynhRouter)
+
+
+
+app.listen(8080,() =>{
+    console.log("Server started on port 8080");
+})
