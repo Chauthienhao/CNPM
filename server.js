@@ -260,8 +260,15 @@ app.post('/schedules', (req, res) => {
     if (ten_tuyen_duong) {
       db.query('SELECT id FROM tuyenduong WHERE ten_tuyen_duong = ? LIMIT 1', [ten_tuyen_duong], (err, results) => {
         if (err) return cb(err);
-        if (results.length === 0) return cb(new Error('Không tìm thấy tuyến đường.'));
-        cb(null, results[0].id);
+        if (results.length === 0) {
+          // Nếu chưa có, tự động thêm tuyến đường mới
+          db.query('INSERT INTO tuyenduong (ten_tuyen_duong) VALUES (?)', [ten_tuyen_duong], (err2, result) => {
+            if (err2) return cb(err2);
+            cb(null, result.insertId);
+          });
+        } else {
+          cb(null, results[0].id);
+        }
       });
     } else {
       cb(new Error('Thiếu thông tin tuyến đường.'));
