@@ -167,7 +167,7 @@ app.get('/schedules', (req, res) => {
 });
 // Tìm kiếm lịch trình theo ngày, tài xế, mã xe buýt
 app.get('/schedules/search', (req, res) => {
-  const { ngay, tai_xe_id, xe_bus_id } = req.query;
+  const { ngay, tai_xe_id, xe_bus_id, start_date, end_date } = req.query;
   let query = `SELECT t.id, td.ten_tuyen_duong, tx.ho_ten AS tai_xe, xb.bien_so_xe, t.ngay, t.gio_xuat_phat, t.thu
                FROM trip t
                JOIN tuyenduong td ON t.tuyen_duong_id = td.id
@@ -186,6 +186,11 @@ app.get('/schedules/search', (req, res) => {
   if (xe_bus_id) {
     conditions.push('t.xe_bus_id = ?');
     params.push(xe_bus_id);
+  }
+  // Thêm lọc theo khoảng ngày nếu truyền start_date và end_date
+  if (start_date && end_date) {
+    conditions.push('t.ngay >= ? AND t.ngay <= ?');
+    params.push(start_date, end_date);
   }
   if (conditions.length > 0) {
     query += ' WHERE ' + conditions.join(' AND ');

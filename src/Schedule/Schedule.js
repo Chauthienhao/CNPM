@@ -2,6 +2,43 @@ import React, { useEffect, useState } from 'react';
 import './Schedule.css';
 
 const Schedule = () => {
+    // State cho dropdown tuần
+    const [selectedWeek, setSelectedWeek] = useState('');
+
+    // Hàm lấy danh sách tuần từ dữ liệu
+    const getWeeksFromData = (data) => {
+      if (data.length === 0) return [];
+      const allDates = data.map(sch => sch.ngay).filter(Boolean);
+      const dateObjs = allDates.map(d => new Date(d)).sort((a, b) => a - b);
+      let minDate = new Date(dateObjs[0]);
+      minDate.setHours(0,0,0,0);
+      minDate.setDate(minDate.getDate() - ((minDate.getDay() + 6) % 7));
+      let maxDate = new Date(dateObjs[dateObjs.length-1]);
+      maxDate.setHours(0,0,0,0);
+      maxDate.setDate(maxDate.getDate() + (7 - maxDate.getDay()) % 7);
+      const weeks = [];
+      let weekStart = new Date(minDate);
+      let weekNum = 1;
+      while (weekStart <= maxDate) {
+        let weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const hasSchedule = dateObjs.some(d => d >= weekStart && d <= weekEnd);
+        if (hasSchedule) {
+          weeks.push({
+            value: `${weekStart.getFullYear()}-${weekNum}`,
+            label: `Tuần ${weekNum} [từ ngày ${weekStart.toLocaleDateString('vi-VN')} đến ngày ${weekEnd.toLocaleDateString('vi-VN')}]`,
+            start: new Date(weekStart),
+            end: new Date(weekEnd)
+          });
+        }
+        weekStart.setDate(weekStart.getDate() + 7);
+        weekNum++;
+      }
+      return weeks;
+    };
+
+    // Hàm lấy tuần từ schedules (dùng cho dropdown)
+    const getWeeks = () => getWeeksFromData(schedules);
   // State cho tab, form, và dữ liệu từ DB
   const [selectedTab, setSelectedTab] = useState('routes');
   const [routeName, setRouteName] = useState('');
@@ -39,6 +76,11 @@ const Schedule = () => {
         setBuses(busesData);
         setStudents(studentsData);
         setError(null);
+        // Nếu chưa chọn tuần, tự động chọn tuần đầu tiên
+        if (!selectedWeek && schedulesData.length > 0) {
+          const weeks = getWeeksFromData(schedulesData);
+          if (weeks.length > 0) setSelectedWeek(weeks[0].value);
+        }
       } catch (err) {
         console.error('Lỗi tải dữ liệu:', err);
         if (err.message.includes('Failed to fetch')) {
@@ -161,17 +203,32 @@ const Schedule = () => {
     return days;
   };
 
-  // Hàm tìm kiếm lịch trình từ server
+  // Hàm tìm kiếm lịch trình từ server, truyền thông tin tuần nếu có
   const handleSearch = async () => {
-    if (!selectedDate && !driverId && !busId) {
-      alert('Vui lòng chọn ít nhất một điều kiện tìm kiếm (ngày, tài xế hoặc mã xe buýt)');
-      return;
-    }
     const params = [];
     if (selectedDate) params.push(`ngay=${selectedDate}`);
     if (driverId) params.push(`tai_xe_id=${driverId}`);
     if (busId) params.push(`xe_bus_id=${busId}`);
-    const queryString = params.length > 0 ? '?' + params.join('&') : '';
+    // Luôn truyền start_date và end_date nếu chọn tuần, để backend chỉ tìm trong tuần đó
+    if (selectedWeek) {
+      const weekObj = getWeeks().find(w => w.value === selectedWeek);
+      if (weekObj) {
+        const formatDate = d => {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2,'0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
+        params.push(`start_date=${formatDate(weekObj.start)}`);
+        params.push(`end_date=${formatDate(weekObj.end)}`);
+      }
+    }
+    // Nếu không nhập gì thì báo yêu cầu nhập ít nhất 1 điều kiện
+    if (params.length === 0) {
+      alert('Vui lòng nhập ít nhất một điều kiện tìm kiếm (ngày, tài xế hoặc mã xe buýt hoặc tuần)!');
+      return;
+    }
+    const queryString = '?' + params.join('&');
     try {
       const res = await fetch(`http://localhost:5000/schedules/search${queryString}`);
       const data = await res.json();
@@ -189,19 +246,77 @@ const Schedule = () => {
     }
   };
 
+
+
+
+  // Lọc lịch trình theo tuần được chọn
+  let filteredSchedules;
+  if (selectedWeek) {
+    const weekObj = getWeeks().find(w => w.value === selectedWeek);
+    if (weekObj) {
+      filteredSchedules = schedules.filter(sch => {
+        const d = new Date(sch.ngay);
+        // Chuẩn hóa về 0h00 để so sánh chỉ theo ngày
+        d.setHours(0,0,0,0);
+        const start = new Date(weekObj.start);
+        start.setHours(0,0,0,0);
+        const end = new Date(weekObj.end);
+        end.setHours(0,0,0,0);
+        return d >= start && d <= end;
+      });
+    } else {
+      filteredSchedules = schedules;
+    }
+  } else {
+    filteredSchedules = schedules;
+  }
+
+  // Lọc lịch trình theo tuần được chọn
+ 
+
   const weekdays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-  const daySchedules = groupByWeekday();
+  // Nhóm lịch trình theo ngày trong tuần dựa trên filteredSchedules
+  const daySchedules = (() => {
+    const days = [[], [], [], [], [], []];
+    filteredSchedules.forEach((sch) => {
+      switch (sch.thu) {
+        case '2': days[0].push(sch); break;
+        case '3': days[1].push(sch); break;
+        case '4': days[2].push(sch); break;
+        case '5': days[3].push(sch); break;
+        case '6': days[4].push(sch); break;
+        case '7': days[5].push(sch); break;
+        default: break;
+      }
+    });
+    return days;
+  })();
 
   return (
     <div className="schedule-page">
       <div className="schedule-container">
         <div className="schedule-main">
           <h2 className="schedule-title">Quản lí lịch trình</h2>
-          <div className="tab-buttons">
-            <button 
-              className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`} 
-              onClick={() => setSelectedTab('routes')}
-            >Tất cả tuyến đường</button>
+          <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'10px'}}>
+            <div className="tab-buttons">
+              <button 
+                className={`tab-btn ${selectedTab === 'routes' ? 'active' : ''}`} 
+                onClick={() => setSelectedTab('routes')}
+              >Tất cả tuyến đường</button>
+            </div>
+            {/* Dropdown chọn tuần */}
+            <div>
+              <label style={{marginRight:'8px'}}>Chọn tuần:</label>
+              <select
+                className="dropdown"
+                value={selectedWeek}
+                onChange={e => setSelectedWeek(e.target.value)}
+              >
+                {getWeeks().map(week => (
+                  <option key={week.value} value={week.value}>{week.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           {loading ? (
             <div className="loading-state">Đang tải dữ liệu...</div>
@@ -288,13 +403,13 @@ const Schedule = () => {
               {buses.map(bus => (
                 <option key={bus.id} value={bus.id}>{bus.bien_so_xe}</option>
               ))}
-            </select>
+            {/* </select>
             <label>Danh sách học sinh:</label>
             <select
               className="dropdown"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
-            >
+            > */}
               <option value="">Chọn học sinh</option>
               {students.map(student => (
                 <option key={student.id} value={student.id}>{student.ho_ten}</option>
