@@ -15,7 +15,7 @@ const AddPhuHuynhform = ({close,resetdata}) =>{
     const handleSubmit = (e) =>{
         e.preventDefault();
         const phuhuynh = {tai_khoan_id: id,ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
-        fetch('http://localhost:8080/phuhuynh', {
+        fetch('http://localhost:5000/phuhuynh', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

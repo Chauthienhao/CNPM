@@ -1,3 +1,4 @@
+import { parse } from "postcss";
 import {
     getallphuhuynh,
     insertphuhuynh,
@@ -37,7 +38,7 @@ export const xoaph = async (req, res) => {
     }
 }
 export const timph = async (req, res) => {
-    const id =req.params.id;
+    const id =parseInt(req.params.id);
     try{
         const phuhuynh = await getphuhuynh(id);
         res.json(phuhuynh);

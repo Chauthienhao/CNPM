@@ -6,10 +6,11 @@ const EditPhuHuynhform = ({id,close,resetdata}) =>{
     const [sdt, setSdt] = useState("");
     const [address, setAddress] = useState("");
 
+    
     const handleSubmit = async (e) =>{
         e.preventDefault();
         const phuhuynh = {ho_ten:name,email:email,so_dien_thoai:sdt,dia_chi:address};
-        await fetch(`http://localhost:8080/phuhuynh/${id}`, {
+        await fetch(`http://localhost:5000/phuhuynh/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -20,18 +21,18 @@ const EditPhuHuynhform = ({id,close,resetdata}) =>{
 
     }
 
-    useEffect(() => {
-        const loaddata = async () => {
-            const response =await fetch(`http://localhost:8080/phuhuynh/${id}`);
-            const data= await response.json();
-            console.log(data);
-            setName(data[0].ho_ten);
-            setEmail(data[0].email);
-            setSdt(data[0].so_dien_thoai);
-            setAddress(data[0].dia_chi);
-        }
-        loaddata();
-    },[id])
+        useEffect(() => {
+            const loaddata = async () => {
+                const response =await fetch(`http://localhost:5000/phuhuynh/${id}`);
+                const data= await response.json();
+                console.log(data);
+                setName(data[0].ho_ten);
+                setEmail(data[0].email);
+                setSdt(data[0].so_dien_thoai);
+                setAddress(data[0].dia_chi);
+            }
+            loaddata();
+        },[id])
 
     return(
         <>

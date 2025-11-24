@@ -14,7 +14,7 @@ const AddStudentform = ({resetdata,close}) =>{
     const handleSubmit = (e) =>{
         e.preventDefault();
         const hocsinh = {phu_huynh_id:phid,ho_ten:name,email:email,status:status};
-        fetch('http://localhost:8080/student', {
+        fetch('http://localhost:5000/student', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

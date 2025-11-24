@@ -12,7 +12,7 @@ const Phuhuynh = () => {
     const editform = useRef(null);
     useEffect(() => {
         const fetchDataa = async () => {
-            const response = await fetch("http://localhost:8080/phuhuynh");
+            const response = await fetch("http://localhost:5000/phuhuynh");
             const data = await response.json();
             setPhuhuynh(data);
 
@@ -26,7 +26,7 @@ const Phuhuynh = () => {
             fetchData();
         }
         else {
-            const response = await fetch(`http://localhost:8080/phuhuynh/search/${search}`);
+            const response = await fetch(`http://localhost:5000/phuhuynh/search/${search}`);
             const data = await response.json();
             console.log(data);
             setPhuhuynh(data);
@@ -54,7 +54,7 @@ const Phuhuynh = () => {
         mainform.current.style.display = 'block';
     }
     const fetchData = async () => {
-        const response = await fetch("http://localhost:8080/phuhuynh");
+        const response = await fetch("http://localhost:5000/phuhuynh");
         const data = await response.json();
         setPhuhuynh(data);
 
@@ -62,7 +62,7 @@ const Phuhuynh = () => {
     const deletee = async (id) => {
         if (window.confirm("Bạn có muốn xóa không?")) {
             try {
-                const res = await fetch(`http://localhost:8080/phuhuynh/${id}`, {
+                const res = await fetch(`http://localhost:5000/phuhuynh/${id}`, {
                     method: 'DELETE',
                 });
                 if(res.ok){

@@ -7,7 +7,7 @@ const EditStudentForm = ({id,resetdata,close}) =>{
     const [phid, setPhid] = useState("");
     useEffect(() => {
         const loaddata = async () => {
-            const response =await fetch(`http://localhost:8080/student/${id}`);
+            const response =await fetch(`http://localhost:5000/student/${id}`);
             const data= await response.json();
             console.log(data);
             setName(data[0].ho_ten);
@@ -20,7 +20,7 @@ const EditStudentForm = ({id,resetdata,close}) =>{
     const handleSubmit = (e) =>{
         e.preventDefault();
         const hocsinh = {id:id,phu_huynh_id:phid,ho_ten:name,email:email,status:status};
-        fetch(`http://localhost:8080/student/${id}`, {
+        fetch(`http://localhost:5000/student/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

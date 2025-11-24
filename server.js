@@ -1,9 +1,14 @@
 
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const axios = require('axios');
-const db = require('./config');
+// const express = require('express');
+// const cors = require('cors');
+// const bcrypt = require('bcryptjs');
+// const axios = require('axios');
+// const db = require('./config');
+import express from 'express';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import axios from 'axios';
+import db from './config.js';
 
 const app = express();
 const PORT = 5000;
@@ -11,25 +16,27 @@ const PORT = 5000;
 // Google Maps API Key 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDtViS_O_TRVKPXi43VpL-ZS3bRLeoOiVY';
 
-import cors from 'cors';
+// import cors from 'cors';
 import StudentsRouter from './src/Students/StudentRoute/StudentRoute.js'
 import PhuhuynhRouter from './src/Phuhuynh/PhuHuynhRoute/PhuhuynhRoute.js'
 app.use(express.json())
 app.use(cors());
-app.use(express.json());
+app.use(express.urlencoded({ extended: true }))
+
 
 // Endpoint lấy danh sách học sinh
-app.get('/students', (req, res) => {
-  const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Lỗi truy vấn HocSinh:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu học sinh.' });
-    }
-    res.json(results);
-  });
-});
-
+// app.get('/students', (req, res) => {
+//   const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
+//   db.query(query, (err, results) => {
+//     if (err) {
+//       console.error('Lỗi truy vấn HocSinh:', err);
+//       return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu học sinh.' });
+//     }
+//     res.json(results);
+//   });
+        // });
+app.use('/student',StudentsRouter);
+app.use('/phuhuynh',PhuhuynhRouter);
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -342,16 +349,16 @@ app.delete('/trip/:id', (req, res) => {
   });
 });
 // Endpoint lấy danh sách học sinh
-app.get('/students', (req, res) => {
-  const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error('Lỗi truy vấn HocSinh:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu học sinh.' });
-    }
-    res.json(results);
-  });
-});
+// app.get('/students', (req, res) => {
+//   const query = 'SELECT * FROM HocSinh ORDER BY ho_ten';
+//   db.query(query, (err, results) => {
+//     if (err) {
+//       console.error('Lỗi truy vấn HocSinh:', err);
+//       return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu học sinh.' });
+//     }
+//     res.json(results);
+//   });
+// });
 
 // GOOGLE MAPS GEOCODING 
 
@@ -771,23 +778,23 @@ app.get('/notifications', (req, res) => {
 });
 
 // Lấy danh sách phụ huynh
-app.get('/parents', (req, res) => {
-  const sql = 'SELECT id, ho_ten FROM PhuHuynh ORDER BY ho_ten';
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err });
-    res.json(results);
-  });
-});
+// app.get('/parents', (req, res) => {
+//   const sql = 'SELECT id, ho_ten FROM PhuHuynh ORDER BY ho_ten';
+//   db.query(sql, (err, results) => {
+//     if (err) return res.status(500).json({ error: err });
+//     res.json(results);
+//   });
+// });
 
 // Lấy danh sách học sinh
-app.get('/students', (req, res) => {
-  const sql = `SELECT id, ho_ten FROM HocSinh ORDER BY ho_ten`;
-  db.query(sql, (err, results) => {
-     if (err) return res.status(500).json({ error: err });
+// app.get('/students', (req, res) => {
+//   const sql = `SELECT id, ho_ten FROM HocSinh ORDER BY ho_ten`;
+//   db.query(sql, (err, results) => {
+//      if (err) return res.status(500).json({ error: err });
   
-    res.json(results); // Trả về mảng JSON {id, name}
-  });
-});
+//     res.json(results); // Trả về mảng JSON {id, name}
+//   });
+// });
 
 // Thêm thông báo
 app.post('/notifications', (req, res) => {
@@ -838,13 +845,6 @@ app.post("/notifications/send-all", (req, res) => {
 
   return res.json({ message: "Đã gửi tất cả thông báo thành công!" });
 });
-app.use(express.urlencoded({ extended: true }))
-
-app.use("/student",StudentsRouter);
-app.use("/phuhuynh",PhuhuynhRouter)
 
 
 
-app.listen(8080,() =>{
-    console.log("Server started on port 8080");
-})

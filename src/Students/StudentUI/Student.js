@@ -23,7 +23,7 @@ const Students = () => {
             resetdata();
         }
         else {
-            const response = await fetch(`http://localhost:8080/student/search/${search}`);
+            const response = await fetch(`http://localhost:5000/student/search/${search}`);
             const data = await response.json();
             console.log(data);
             setHocsinh(data);
@@ -33,7 +33,7 @@ const Students = () => {
         findData();
     },[search]);
     const resetdata = async () => {
-        const response = await fetch("http://localhost:8080/student");
+        const response = await fetch("http://localhost:5000/student");
         const data = await response.json();
         setHocsinh(data);
     }
@@ -70,7 +70,7 @@ const Students = () => {
     const deletee = async (id) => {
         if (window.confirm("Bạn có muốn xóa không?")) {
             try {
-                const res = await fetch(`http://localhost:8080/student/${id}`, {
+                const res = await fetch(`http://localhost:5000/student/${id}`, {
                     method: 'DELETE',
                 });
                 if(res.ok){

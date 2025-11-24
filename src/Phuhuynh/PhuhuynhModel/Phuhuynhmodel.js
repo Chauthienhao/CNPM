@@ -1,7 +1,7 @@
-import db from "../../config/db.js";
+import db from "../../../config.js";
 export const getallphuhuynh = async () => {
     try {
-        const [rows] = await db.execute("Select * from phuhuynh where status=1");
+        const [rows] = await db.promise().execute("Select * from phuhuynh where status=1");
         return rows;
     } catch (err) {
         console.log(err);
@@ -9,7 +9,7 @@ export const getallphuhuynh = async () => {
 }
     export const insertphuhuynh = async (phuhuynh) => {
         try{
-                await db.execute("INSERT INTO phuhuynh(tai_khoan_id,ho_ten,email,so_dien_thoai,dia_chi) VALUES(?,?,?,?,?)",[phuhuynh.tai_khoan_id,phuhuynh.ho_ten,phuhuynh.email,phuhuynh.so_dien_thoai,phuhuynh.dia_chi]);
+                await db.promise().execute("INSERT INTO phuhuynh(tai_khoan_id,ho_ten,email,so_dien_thoai,dia_chi) VALUES(?,?,?,?,?)",[phuhuynh.tai_khoan_id,phuhuynh.ho_ten,phuhuynh.email,phuhuynh.so_dien_thoai,phuhuynh.dia_chi]);
 
         }
         catch(err){
@@ -19,20 +19,20 @@ export const getallphuhuynh = async () => {
 }
 export const delph = async (id) => {
     try{
-        await db.execute("UPDATE  phuhuynh SET status = 2 WHERE id = ?",[id]);
+        await db.promise().execute("UPDATE  phuhuynh SET status = 2 WHERE id = ?",[id]);
     }
     catch(err){
         console.log(err);
     }
 }
 export const getphuhuynh = async (id) => {
-    const [rows] = await db.execute("SELECT * FROM phuhuynh WHERE id = ?", [id]);
+    const [rows] = await db.promise().execute("SELECT * FROM phuhuynh WHERE id = ?", [id]);
     return rows;
 }
 export const updatephuhuynh = async (phuhuynh) => {
     try{
 
-        await db.execute("UPDATE phuhuynh SET ho_ten=?,email=?,so_dien_thoai=?,dia_chi=? WHERE id = ?", [phuhuynh.ho_ten,phuhuynh.email,phuhuynh.so_dien_thoai,phuhuynh.dia_chi,phuhuynh.id]);
+        await db.promise().execute("UPDATE phuhuynh SET ho_ten=?,email=?,so_dien_thoai=?,dia_chi=? WHERE id = ?", [phuhuynh.ho_ten,phuhuynh.email,phuhuynh.so_dien_thoai,phuhuynh.dia_chi,phuhuynh.id]);
     }
     catch(err){
         console.log(err);
@@ -40,7 +40,7 @@ export const updatephuhuynh = async (phuhuynh) => {
 }
 export const findphuhuynh = async (hoten) => {
     try{
-        const [rows] =await db.execute("SELECT * from phuhuynh where  ho_ten like ? and status = 1", [`%${hoten}%`]);
+        const [rows] =await db.promise().execute("SELECT * from phuhuynh where  ho_ten like ? and status = 1", [`%${hoten}%`]);
         return rows;
     }
     catch(err){
