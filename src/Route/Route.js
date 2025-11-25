@@ -113,6 +113,28 @@ const blueIcon = new L.Icon({
 // Props: isLoaded (Google Maps đã load), loadError (lỗi khi load Maps)
 // #endregion
 const Routes = ({ isLoaded, loadError }) => {
+        // Hàm lấy danh sách xe buýt có lịch trình trong tuần đã chọn
+        // Lấy danh sách biển số xe buýt có lịch trình trong tuần đã chọn
+        const getBusPlatesForSelectedWeek = () => {
+            if (!selectedWeek || !weeks.length || !schedules.length) return [];
+            const weekObj = weeks.find(w => w.value === selectedWeek);
+            if (!weekObj) return [];
+            // Lấy các lịch trình thuộc tuần
+            const busPlates = schedules
+                .filter(sch => {
+                    const d = new Date(sch.ngay);
+                    d.setHours(0,0,0,0);
+                    const start = new Date(weekObj.start);
+                    start.setHours(0,0,0,0);
+                    const end = new Date(weekObj.end);
+                    end.setHours(0,0,0,0);
+                    return d >= start && d <= end;
+                })
+                .map(sch => sch.bien_so_xe)
+                .filter(Boolean);
+            // Loại bỏ trùng lặp
+            return Array.from(new Set(busPlates));
+        };
     // #region State chính
     // const [directions, setDirections] = useState({}); // Sẽ chuyển sang logic của Leaflet
     const [searchTerm, setSearchTerm] = useState(''); // Từ khóa tìm kiếm xe
@@ -123,58 +145,100 @@ const Routes = ({ isLoaded, loadError }) => {
     const [loading, setLoading] = useState(true); // Trạng thái loading
     const [error, setError] = useState(null); // Lưu lỗi
     const markerRefs = useRef({});
-    // ...existing code...
+    // State cho tuần lịch trình
+    const [weeks, setWeeks] = useState([]);
+    const [selectedWeek, setSelectedWeek] = useState('');
+    const [schedules, setSchedules] = useState([]);
+        // Hàm lấy danh sách tuần từ dữ liệu lịch trình
+        const getWeeksFromData = (data) => {
+            if (!data || data.length === 0) return [];
+            const allDates = data.map(sch => sch.ngay).filter(Boolean);
+            const dateObjs = allDates.map(d => new Date(d)).sort((a, b) => a - b);
+            let minDate = new Date(dateObjs[0]);
+            minDate.setHours(0,0,0,0);
+            minDate.setDate(minDate.getDate() - ((minDate.getDay() + 6) % 7));
+            let maxDate = new Date(dateObjs[dateObjs.length-1]);
+            maxDate.setHours(0,0,0,0);
+            maxDate.setDate(maxDate.getDate() + (7 - maxDate.getDay()) % 7);
+            const weeks = [];
+            let weekStart = new Date(minDate);
+            let weekNum = 1;
+            while (weekStart <= maxDate) {
+                let weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const hasSchedule = dateObjs.some(d => d >= weekStart && d <= weekEnd);
+                if (hasSchedule) {
+                    weeks.push({
+                        value: `${weekStart.getFullYear()}-${weekNum}`,
+                        label: `Tuần ${weekNum} [${weekStart.toLocaleDateString('vi-VN')} - ${weekEnd.toLocaleDateString('vi-VN')}]`,
+                        start: new Date(weekStart),
+                        end: new Date(weekEnd)
+                    });
+                }
+                weekStart.setDate(weekStart.getDate() + 7);
+                weekNum++;
+            }
+            return weeks;
+        };
 
     // #region useEffect - Fetch dữ liệu
     // Load xe buýt từ DB (XeBus)
     useEffect(() => {
-      // Fetch danh sách xe buýt từ API backend
-      const fetchBuses = async () => {
-        try {
-          if (loading) setLoading(false);
-          console.log('[Route] Fetching buses from API...');
-          const res = await fetch('http://localhost:5000/buses');
-          if (!res.ok) throw new Error('Network response was not ok');
-          const data = await res.json();
-          console.log('[Route] Raw bus data:', data);
-          const formattedBuses = data.map((bus, idx) => ({
-            id: String(bus.id).padStart(2, '0'),
-            status: 'N/A',
-            trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
-            timestamp: new Date().toISOString(),
-            latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
-            longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
-            speed: bus.speed != null ? bus.speed : 0,
-            isOnline: bus.speed != null,
-            tuyen_duong_id: bus.tuyen_duong_id,
-            calculateDelay: () => 'N/A',
-            updateLocation: () => {}
-          }));
-          console.log('[Route] Formatted buses:', formattedBuses);
-          setBusRoutes(formattedBuses);
-          // Fetch stops từ API routes
-          const routesRes = await fetch('http://localhost:5000/routes');
-          if (routesRes.ok) {
-            const routesData = await routesRes.json();
-            const stopsData = {};
-            for (const route of routesData) {
-              const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
-              if (stopsRes.ok) {
-                stopsData[route.id] = await stopsRes.json();
-              }
-            }
-            setRouteStops(stopsData);
-          }
-          setError(null);
-        } catch (err) {
-          console.error('Lỗi tải dữ liệu xe:', err);
-          setError('Không thể tải danh sách xe');
-          setBusRoutes([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchBuses();
+            // Fetch danh sách xe buýt và lịch trình từ API backend
+            const fetchBusesAndSchedules = async () => {
+                try {
+                    if (loading) setLoading(false);
+                    // Fetch buses
+                    const res = await fetch('http://localhost:5000/buses');
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    const data = await res.json();
+                    const formattedBuses = data.map((bus, idx) => ({
+                        id: String(bus.id).padStart(2, '0'),
+                        status: 'N/A',
+                        trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
+                        timestamp: new Date().toISOString(),
+                        latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
+                        longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
+                        speed: bus.speed != null ? bus.speed : 0,
+                        isOnline: bus.speed != null,
+                        tuyen_duong_id: bus.tuyen_duong_id,
+                        calculateDelay: () => 'N/A',
+                        updateLocation: () => {}
+                    }));
+                    setBusRoutes(formattedBuses);
+                    // Fetch stops từ API routes
+                    const routesRes = await fetch('http://localhost:5000/routes');
+                    if (routesRes.ok) {
+                        const routesData = await routesRes.json();
+                        const stopsData = {};
+                        for (const route of routesData) {
+                            const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
+                            if (stopsRes.ok) {
+                                stopsData[route.id] = await stopsRes.json();
+                            }
+                        }
+                        setRouteStops(stopsData);
+                    }
+                    // Fetch schedules để lấy tuần
+                    const schedulesRes = await fetch('http://localhost:5000/schedules');
+                    if (schedulesRes.ok) {
+                        const schedulesData = await schedulesRes.json();
+                        setSchedules(schedulesData);
+                        const weekList = getWeeksFromData(schedulesData);
+                        setWeeks(weekList);
+                        // Nếu chưa chọn tuần, tự động chọn tuần đầu tiên
+                        if (!selectedWeek && weekList.length > 0) setSelectedWeek(weekList[0].value);
+                    }
+                    setError(null);
+                } catch (err) {
+                    console.error('Lỗi tải dữ liệu xe/lịch trình:', err);
+                    setError('Không thể tải danh sách xe/lịch trình');
+                    setBusRoutes([]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchBusesAndSchedules();
     }, [isLoaded, loading]);
     // #endregion
 
@@ -261,9 +325,11 @@ const Routes = ({ isLoaded, loadError }) => {
             return `${etaMinutes} phút`;
         }
     const filteredRoutes = busRoutes.filter(route =>
-        route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        route.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        route.trackingId.toLowerCase().includes(searchTerm.toLowerCase())
+        (
+            route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            route.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            route.trackingId.toLowerCase().includes(searchTerm.toLowerCase())
+        ) && getBusPlatesForSelectedWeek().includes(route.trackingId)
     );
 
     // Hàm xác định class tốc độ/trạng thái xe
@@ -311,6 +377,19 @@ const Routes = ({ isLoaded, loadError }) => {
                     />
                     <button className="search-btn">🔍</button>
                 </div>
+                <div style={{marginBottom:'10px'}}>
+                    <label style={{marginRight:'8px'}}>Chọn tuần lịch trình:</label>
+                    <select
+                        className="dropdown"
+                        value={selectedWeek}
+                        onChange={e => setSelectedWeek(e.target.value)}
+                        style={{minWidth:'220px', color:'#111'}}
+                    >
+                        {weeks.map(week => (
+                            <option key={week.value} value={week.value} style={{color:'#111'}}>{week.label}</option>
+                        ))}
+                    </select>
+                </div>
                 <div className="map-container">
                     <MapContainer center={center} zoom={13} style={{ width: '100%', height: '650px', borderRadius: '8px' }}>
                         <TileLayer
@@ -331,38 +410,48 @@ const Routes = ({ isLoaded, loadError }) => {
                             ) : null
                         ))}
 
-                        {busRoutes.map((bus) => (
-                            <Marker
-                                key={bus.id}
-                                position={[bus.latitude, bus.longitude]}
-                                icon={
-                                    !bus.isOnline ? redIcon :
-                                    bus.speed === 0 ? yellowIcon :
-                                    greenIcon
-                                }
-                                eventHandlers={{ click: () => {
-                                    handleShowBus(bus.id);
-                                    setSelectedRouteId(bus.tuyen_duong_id);
-                                } }}
-                                ref={(ref) => { markerRefs.current[bus.id] = ref; }}
-                            >
-                                {selectedBus && selectedBus.id === bus.id && (
-                                    <Popup position={[bus.latitude, bus.longitude]} onClose={() => setSelectedBus(null)}>
-                                        <div style={{ padding: '10px', minWidth: '200px' }}>
-                                            <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {bus.id}</h3>
-                                            <p style={{ margin: '5px 0' }}><strong>Biển số xe:</strong> {bus.trackingId}</p>
-                                            <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {bus.speed} km/h</p>
-                                            <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {bus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
-                                            <p style={{ margin: '5px 0', fontSize: 12 }}>
-                                                <strong>Vĩ độ:</strong> {bus.latitude.toFixed(6)}<br/>
-                                                <strong>Kinh độ:</strong> {bus.longitude.toFixed(6)}
-                                            </p>
-                                        </div>
-                                    </Popup>
-                                )}
-                            </Marker>
-                        ))}
-                        {busRoutes.map((bus) => {
+                        {busRoutes.filter(bus => getBusPlatesForSelectedWeek().includes(bus.trackingId)).map((bus) => {
+                            // Tìm lịch trình của xe trong tuần đã chọn
+                            const weekObj = weeks.find(w => w.value === selectedWeek);
+                            let scheduleDate = '';
+                            if (weekObj) {
+                                const sch = schedules.find(sch => sch.bien_so_xe === bus.trackingId && new Date(sch.ngay) >= weekObj.start && new Date(sch.ngay) <= weekObj.end);
+                                if (sch) scheduleDate = sch.ngay;
+                            }
+                            return (
+                                <Marker
+                                    key={bus.id}
+                                    position={[bus.latitude, bus.longitude]}
+                                    icon={
+                                        !bus.isOnline ? redIcon :
+                                        bus.speed === 0 ? yellowIcon :
+                                        greenIcon
+                                    }
+                                    eventHandlers={{ click: () => {
+                                        handleShowBus(bus.id);
+                                        setSelectedRouteId(bus.tuyen_duong_id);
+                                    } }}
+                                    ref={(ref) => { markerRefs.current[bus.id] = ref; }}
+                                >
+                                    {selectedBus && selectedBus.id === bus.id && (
+                                        <Popup position={[bus.latitude, bus.longitude]} onClose={() => setSelectedBus(null)}>
+                                            <div style={{ padding: '10px', minWidth: '200px' }}>
+                                                <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {bus.id}</h3>
+                                                <p style={{ margin: '5px 0' }}><strong>Biển số xe:</strong> {bus.trackingId}</p>
+                                                <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {bus.speed} km/h</p>
+                                                <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {bus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
+                                                <p style={{ margin: '5px 0' }}><strong>Ngày chạy:</strong> {scheduleDate ? new Date(scheduleDate).toLocaleDateString('vi-VN') : 'Không xác định'}</p>
+                                                <p style={{ margin: '5px 0', fontSize: 12 }}>
+                                                    <strong>Vĩ độ:</strong> {bus.latitude.toFixed(6)}<br/>
+                                                    <strong>Kinh độ:</strong> {bus.longitude.toFixed(6)}
+                                                </p>
+                                            </div>
+                                        </Popup>
+                                    )}
+                                </Marker>
+                            );
+                        })}
+                        {busRoutes.filter(bus => getBusPlatesForSelectedWeek().includes(bus.trackingId)).map((bus) => {
                             const stops = routeStops[bus.tuyen_duong_id] || [];
                             const markers = [];
                             if (stops.length >= 2) {
@@ -426,8 +515,8 @@ const Routes = ({ isLoaded, loadError }) => {
                         </div>
                     ) : filteredRoutes.length > 0 ? (
                         filteredRoutes.map(route => {
-                                                        // Debug: log giá trị speed và isOnline để kiểm tra logic
-                                                        console.log(`Bus ${route.id} - speed:`, route.speed, 'isOnline:', route.isOnline);
+                            // Debug: log giá trị speed và isOnline để kiểm tra logic
+                            console.log(`Bus ${route.id} - speed:`, route.speed, 'isOnline:', route.isOnline);
                             const stops = routeStops[route.tuyen_duong_id] || [];
                             const firstStop = stops[0];
                             const lastStop = stops[stops.length - 1];

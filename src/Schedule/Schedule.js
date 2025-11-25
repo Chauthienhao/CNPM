@@ -26,7 +26,7 @@ const Schedule = () => {
         if (hasSchedule) {
           weeks.push({
             value: `${weekStart.getFullYear()}-${weekNum}`,
-            label: `Tuần ${weekNum} [từ ngày ${weekStart.toLocaleDateString('vi-VN')} đến ngày ${weekEnd.toLocaleDateString('vi-VN')}]`,
+            label: `Tuần ${weekNum} [từ ${weekStart.toLocaleDateString('vi-VN')} đến ${weekEnd.toLocaleDateString('vi-VN')}]`,
             start: new Date(weekStart),
             end: new Date(weekEnd)
           });
@@ -42,6 +42,7 @@ const Schedule = () => {
   // State cho tab, form, và dữ liệu từ DB
   const [selectedTab, setSelectedTab] = useState('routes');
   const [routeName, setRouteName] = useState('');
+  const [routes, setRoutes] = useState([]); // Danh sách tuyến đường
   const [driverId, setDriverId] = useState('');
   const [busId, setBusId] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -60,21 +61,24 @@ const Schedule = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [schedulesRes, driversRes, busesRes, studentsRes] = await Promise.all([
+        const [schedulesRes, driversRes, busesRes, studentsRes, routesRes] = await Promise.all([
           fetch('http://localhost:5000/schedules'),
           fetch('http://localhost:5000/drivers'),
           fetch('http://localhost:5000/buses'),
-          fetch('http://localhost:5000/students')
+          fetch('http://localhost:5000/students'),
+          fetch('http://localhost:5000/routes')
         ]);
         if (!schedulesRes.ok) throw new Error(`HTTP ${schedulesRes.status}`);
         const schedulesData = await schedulesRes.json();
         const driversData = driversRes.ok ? await driversRes.json() : [];
         const busesData = busesRes.ok ? await busesRes.json() : [];
         const studentsData = studentsRes.ok ? await studentsRes.json() : [];
+        const routesData = routesRes.ok ? await routesRes.json() : [];
         setSchedules(schedulesData);
         setDrivers(driversData);
         setBuses(busesData);
         setStudents(studentsData);
+        setRoutes(routesData);
         setError(null);
         // Nếu chưa chọn tuần, tự động chọn tuần đầu tiên
         if (!selectedWeek && schedulesData.length > 0) {
@@ -112,7 +116,7 @@ const Schedule = () => {
   // Hàm xác nhận: thêm lịch trình vào DB khi đủ dữ kiện (trừ học sinh)
   const handleSave = async () => {
     if (!routeName || !driverId || !busId || !selectedDate) {
-      alert('Vui lòng nhập đầy đủ tuyến đường, tài xế, xe buýt và ngày!');
+      alert('Vui lòng nhập đầy đủ thông tin tuyến đường, tài xế, xe buýt và ngày!');
       return;
     }
     // Tìm id tuyến đường nếu đã có, nếu chưa thì gửi tên lên backend
@@ -158,7 +162,7 @@ const Schedule = () => {
       alert('Vui lòng chọn lịch trình để xóa!');
       return;
     }
-    if (!window.confirm('Bạn có chắc muốn xóa lịch trình này?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa lịch trình này?')) return;
     try {
       const res = await fetch(`http://localhost:5000/trip/${selectedScheduleId}`, {
         method: 'DELETE'
@@ -184,6 +188,7 @@ const Schedule = () => {
   };
 
   const formatTime = (t) => t ? t.substring(0,5) : '--:--';
+  // Hàm chuyển đổi sang tiếng Việt cho các label, placeholder, thông báo
 
   // Nhóm lịch trình theo ngày trong tuần (giả định phân bổ đều)
   const groupByWeekday = () => {
@@ -225,7 +230,7 @@ const Schedule = () => {
     }
     // Nếu không nhập gì thì báo yêu cầu nhập ít nhất 1 điều kiện
     if (params.length === 0) {
-      alert('Vui lòng nhập ít nhất một điều kiện tìm kiếm (ngày, tài xế hoặc mã xe buýt hoặc tuần)!');
+      alert('Vui lòng nhập ít nhất một điều kiện tìm kiếm (ngày, tài xế, xe buýt hoặc tuần)!');
       return;
     }
     const queryString = '?' + params.join('&');
@@ -236,7 +241,7 @@ const Schedule = () => {
         if (data.length === 0) {
           alert('Không tìm thấy lịch trình phù hợp!');
         } else {
-          alert('Kết quả tìm kiếm:\n' + data.map(sch => `${sch.ten_tuyen_duong} - ${sch.tai_xe} - ${sch.bien_so_xe} - ${sch.ngay} ${sch.gio_xuat_phat}`).join('\n'));
+          alert('Kết quả tìm kiếm:\n' + data.map(sch => `${sch.ten_tuyen_duong} - Tài xế: ${sch.tai_xe} - Xe: ${sch.bien_so_xe} - Ngày: ${sch.ngay} Giờ xuất phát: ${sch.gio_xuat_phat}`).join('\n'));
         }
       } else {
         alert(data.message || 'Lỗi tìm kiếm!');
@@ -296,7 +301,7 @@ const Schedule = () => {
     <div className="schedule-page">
       <div className="schedule-container">
         <div className="schedule-main">
-          <h2 className="schedule-title">Quản lí lịch trình</h2>
+          <h2 className="schedule-title">Quản lý lịch trình</h2>
           <div style={{display:'flex', alignItems:'center', gap:'20px', marginBottom:'10px'}}>
             <div className="tab-buttons">
               <button 
@@ -352,7 +357,7 @@ const Schedule = () => {
                         <div className="route-name">{item.ten_tuyen_duong}</div>
                         <div className="route-time">{formatTime(item.gio_xuat_phat)}</div>
                         <div className="route-driver">Tài xế: {item.tai_xe}</div>
-                        <div className="route-bus">Xe: {item.bien_so_xe}</div>
+                        <div className="route-bus">Xe buýt: {item.bien_so_xe}</div>
                       </div>
                     ))}
                   </div>
@@ -363,7 +368,7 @@ const Schedule = () => {
         </div>
         <aside className="schedule-sidebar">
           <div className="sidebar-section">
-              <h3>Chi tiết:</h3>
+              <h3>Chi tiết lịch trình</h3>
               {/* Bộ lọc ngày phía trên tên tuyến đường */}
               <label>Lọc theo ngày:</label>
               <input
@@ -373,22 +378,25 @@ const Schedule = () => {
                 onChange={e => setSelectedDate(e.target.value)}
                 style={{marginBottom: '10px'}}
               />
-              <label>Tên tuyến đường</label>
-              <input
-                type="text"
+              <label>Tên tuyến đường:</label>
+              <select
                 className="dropdown"
                 value={routeName}
                 onChange={e => setRouteName(e.target.value)}
-                placeholder="Nhập tên tuyến đường"
                 style={{marginBottom: '10px'}}
-              />
+              >
+                <option value="">Chọn tuyến đường</option>
+                {routes.map(route => (
+                  <option key={route.id} value={route.ten_tuyen_duong}>{route.ten_tuyen_duong}</option>
+                ))}
+              </select>
             <label>Tài xế:</label>
             <select
               className="dropdown"
               value={driverId}
               onChange={(e) => setDriverId(e.target.value)}
             >
-              <option value="">Tài xế</option>
+              <option value="">Chọn tài xế</option>
               {drivers.map(driver => (
                 <option key={driver.id} value={driver.id}>{driver.ho_ten}</option>
               ))}
@@ -399,17 +407,10 @@ const Schedule = () => {
               value={busId}
               onChange={(e) => setBusId(e.target.value)}
             >
-              <option value="">Bus</option>
+              <option value="">Chọn xe buýt</option>
               {buses.map(bus => (
                 <option key={bus.id} value={bus.id}>{bus.bien_so_xe}</option>
               ))}
-            {/* </select>
-            <label>Danh sách học sinh:</label>
-            <select
-              className="dropdown"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-            > */}
               <option value="">Chọn học sinh</option>
               {students.map(student => (
                 <option key={student.id} value={student.id}>{student.ho_ten}</option>
