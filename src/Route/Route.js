@@ -113,6 +113,19 @@ const blueIcon = new L.Icon({
 // Props: isLoaded (Google Maps đã load), loadError (lỗi khi load Maps)
 // #endregion
 const Routes = ({ isLoaded, loadError }) => {
+            // Danh sách điểm dừng cứng (lấy từ ảnh SQL)
+            const fixedStops = [
+                { id: 1, ten_diem_dung: 'Sunrise City North', latitude: 10.738, longitude: 106.699 },
+                { id: 2, ten_diem_dung: 'Lotte Mart Q7', latitude: 10.735, longitude: 106.7 },
+                { id: 3, ten_diem_dung: 'Đại học Tôn Đức Thắng', latitude: 10.732, longitude: 106.698 },
+                { id: 4, ten_diem_dung: 'Trường THPT Lê Hồng Phong', latitude: 10.76, longitude: 106.682 },
+                { id: 5, ten_diem_dung: 'Vinhomes Grand Park', latitude: 10.83, longitude: 106.833 },
+                { id: 6, ten_diem_dung: 'Khu Công Nghệ Cao', latitude: 10.855, longitude: 106.785 },
+                { id: 7, ten_diem_dung: 'Ngã 4 Thủ Đức', latitude: 10.85, longitude: 106.772 },
+                { id: 8, ten_diem_dung: 'Trường Quốc Tế Á Châu', latitude: 10.798, longitude: 106.719 },
+                { id: 9, ten_diem_dung: 'Emart Gò Vấp', latitude: 10.822, longitude: 106.693 },
+                { id: 10, ten_diem_dung: 'Công viên Gia Định', latitude: 10.81, longitude: 106.68 },
+            ];
         // Hàm lấy danh sách xe buýt có lịch trình trong tuần đã chọn
         // Lấy danh sách biển số xe buýt có lịch trình trong tuần đã chọn
         const getBusPlatesForSelectedWeek = () => {
@@ -396,10 +409,23 @@ const Routes = ({ isLoaded, loadError }) => {
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution="&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener noreferrer'>OpenStreetMap</a> contributors"
                         />
-                        {/* Hiển thị tất cả các tuyến đường bằng Polyline và Routing */}
+                        {/* Hiển thị tất cả các điểm dừng cứng trên bản đồ, KHÔNG nối polyline giữa các điểm dừng cứng */}
+                        {fixedStops.map(stop => (
+                            <Marker
+                                key={`fixedstop-${stop.id}`}
+                                position={[stop.latitude, stop.longitude]}
+                                icon={blueIcon}
+                            >
+                                <Popup>
+                                    <span><strong>{stop.ten_diem_dung}</strong><br/>Vĩ độ: {stop.latitude}<br/>Kinh độ: {stop.longitude}</span>
+                                </Popup>
+                            </Marker>
+                        ))}
+                        {/* ...existing code... */}
                         {Object.entries(routeStops).map(([routeId, stops]) => (
                             stops.length >= 2 ? (
                                 <>
+                                    {/* Polyline chỉ cho các tuyến đường, không nối các điểm dừng cứng */}
                                     <Polyline
                                         key={`polyline-${routeId}`}
                                         positions={stops.map(stop => [Number(stop.latitude), Number(stop.longitude)])}
@@ -414,9 +440,13 @@ const Routes = ({ isLoaded, loadError }) => {
                             // Tìm lịch trình của xe trong tuần đã chọn
                             const weekObj = weeks.find(w => w.value === selectedWeek);
                             let scheduleDate = '';
+                            let gioXuatPhat = '';
                             if (weekObj) {
                                 const sch = schedules.find(sch => sch.bien_so_xe === bus.trackingId && new Date(sch.ngay) >= weekObj.start && new Date(sch.ngay) <= weekObj.end);
-                                if (sch) scheduleDate = sch.ngay;
+                                if (sch) {
+                                    scheduleDate = sch.ngay;
+                                    gioXuatPhat = sch.gio_xuat_phat;
+                                }
                             }
                             return (
                                 <Marker
@@ -441,6 +471,7 @@ const Routes = ({ isLoaded, loadError }) => {
                                                 <p style={{ margin: '5px 0' }}><strong>Tốc độ:</strong> {bus.speed} km/h</p>
                                                 <p style={{ margin: '5px 0' }}><strong>Trạng thái:</strong> {bus.isOnline ? '🟢 Online' : '🔴 Offline'}</p>
                                                 <p style={{ margin: '5px 0' }}><strong>Ngày chạy:</strong> {scheduleDate ? new Date(scheduleDate).toLocaleDateString('vi-VN') : 'Không xác định'}</p>
+                                                <p style={{ margin: '5px 0' }}><strong>Giờ xuất phát:</strong> {gioXuatPhat || 'Không xác định'}</p>
                                                 <p style={{ margin: '5px 0', fontSize: 12 }}>
                                                     <strong>Vĩ độ:</strong> {bus.latitude.toFixed(6)}<br/>
                                                     <strong>Kinh độ:</strong> {bus.longitude.toFixed(6)}
