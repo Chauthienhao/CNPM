@@ -112,6 +112,28 @@ app.get('/buses', (req, res) => {
   });
 });
 
+// API mới: lấy vị trí GPS mới nhất của từng xe buýt từ logxebus
+app.get('/buses/logs', (req, res) => {
+  const query = `
+    SELECT l1.id, l1.xe_bus_id, l1.latitude, l1.longitude, l1.speed, l1.thoi_gian, xb.bien_so_xe, xb.status, xb.tuyen_duong_id
+    FROM logxebus l1
+    INNER JOIN (
+      SELECT xe_bus_id, MAX(thoi_gian) AS max_time
+      FROM logxebus
+      GROUP BY xe_bus_id
+    ) l2 ON l1.xe_bus_id = l2.xe_bus_id AND l1.thoi_gian = l2.max_time
+    LEFT JOIN xebus xb ON l1.xe_bus_id = xb.id
+    ORDER BY l1.xe_bus_id ASC
+  `;
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Lỗi truy vấn logxebus:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu GPS xe buýt.' });
+    }
+    res.json(results);
+  });
+});
+
 // Endpoint lấy danh sách tuyến đường với điểm đón/đến
 app.get('/routes', (req, res) => {
   const query = `SELECT id, ten_tuyen_duong, mo_ta FROM tuyenduong ORDER BY id`;
@@ -224,6 +246,22 @@ app.get('/logxebus', (req, res) => {
     if (err) {
       console.error('Lỗi truy vấn logxebus:', err);
       return res.status(500).json({ message: 'Lỗi máy chủ khi lấy dữ liệu log xe buýt.' });
+    }
+    res.json(results);
+  });
+});
+
+// API mới: lấy lịch sử di chuyển của một xe buýt theo id
+app.get('/buses/:id/logs', (req, res) => {
+  const busId = req.params.id;
+  if (!busId) {
+    return res.status(400).json({ message: 'Thiếu xe_bus_id.' });
+  }
+  const query = `SELECT * FROM logxebus WHERE xe_bus_id = ? ORDER BY thoi_gian ASC`;
+  db.query(query, [busId], (err, results) => {
+    if (err) {
+      console.error('Lỗi truy vấn logxebus theo xe_bus_id:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi lấy lịch sử di chuyển xe buýt.' });
     }
     res.json(results);
   });
@@ -762,6 +800,25 @@ app.delete('/api/taixe/:id', (req, res) => {
 });
 app.listen(PORT, () => {
   console.log(`Máy chủ đang chạy trên http://localhost:${PORT}`);
+});
+
+// Endpoint cập nhật vị trí GPS cho xe buýt
+app.post('/buses/update-location', (req, res) => {
+  const { id, latitude, longitude, speed } = req.body;
+  if (!id || latitude == null || longitude == null || speed == null) {
+    return res.status(400).json({ message: 'Thiếu thông tin id, latitude, longitude, speed.' });
+  }
+  const query = 'UPDATE XeBus SET latitude = ?, longitude = ?, speed = ? WHERE id = ?';
+  db.query(query, [latitude, longitude, speed, id], (err, result) => {
+    if (err) {
+      console.error('Lỗi cập nhật vị trí GPS:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật vị trí.' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy xe buýt.' });
+    }
+    res.json({ message: 'Cập nhật vị trí thành công!' });
+  });
 });
 
 // Lấy danh sách thông báo

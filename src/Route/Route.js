@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
 
+
 // Patch lại hàm _clearLines để tránh lỗi khi this._map bị null
 if (L.Routing && L.Routing.Control && L.Routing.Control.prototype._clearLines) {
     // PATCH: Sửa lỗi khi gọi _clearLines của leaflet-routing-machine nếu _map bị null
@@ -113,19 +114,72 @@ const blueIcon = new L.Icon({
 // Props: isLoaded (Google Maps đã load), loadError (lỗi khi load Maps)
 // #endregion
 const Routes = ({ isLoaded, loadError }) => {
-            // Danh sách điểm dừng cứng (lấy từ ảnh SQL)
-            const fixedStops = [
-                { id: 1, ten_diem_dung: 'Sunrise City North', latitude: 10.738, longitude: 106.699 },
-                { id: 2, ten_diem_dung: 'Lotte Mart Q7', latitude: 10.735, longitude: 106.7 },
-                { id: 3, ten_diem_dung: 'Đại học Tôn Đức Thắng', latitude: 10.732, longitude: 106.698 },
-                { id: 4, ten_diem_dung: 'Trường THPT Lê Hồng Phong', latitude: 10.76, longitude: 106.682 },
-                { id: 5, ten_diem_dung: 'Vinhomes Grand Park', latitude: 10.83, longitude: 106.833 },
-                { id: 6, ten_diem_dung: 'Khu Công Nghệ Cao', latitude: 10.855, longitude: 106.785 },
-                { id: 7, ten_diem_dung: 'Ngã 4 Thủ Đức', latitude: 10.85, longitude: 106.772 },
-                { id: 8, ten_diem_dung: 'Trường Quốc Tế Á Châu', latitude: 10.798, longitude: 106.719 },
-                { id: 9, ten_diem_dung: 'Emart Gò Vấp', latitude: 10.822, longitude: 106.693 },
-                { id: 10, ten_diem_dung: 'Công viên Gia Định', latitude: 10.81, longitude: 106.68 },
-            ];
+    // State declarations (move to top)
+    const [animatedBusPositions, setAnimatedBusPositions] = useState({});
+    const [searchTerm, setSearchTerm] = useState(''); // Từ khóa tìm kiếm xe
+    const [selectedBus, setSelectedBus] = useState(null); // Xe đang được chọn để hiển thị InfoWindow
+    const [selectedRouteId, setSelectedRouteId] = useState(null); // Tuyến đang được routing
+    const [busRoutes, setBusRoutes] = useState([]); // Danh sách xe buýt
+    const [routeStops, setRouteStops] = useState({}); // Lưu các điểm dừng của từng tuyến
+    const [loading, setLoading] = useState(true); // Trạng thái loading
+    const [error, setError] = useState(null); // Lưu lỗi
+    const markerRefs = useRef({});
+    const [weeks, setWeeks] = useState([]);
+    const [selectedWeek, setSelectedWeek] = useState('');
+    const [schedules, setSchedules] = useState([]);
+
+    // Nội suy vị trí marker khi busRoutes thay đổi
+    useEffect(() => {
+        // Chỉ animate các marker xe buýt
+        busRoutes.forEach(bus => {
+            const prev = animatedBusPositions[bus.id];
+            const next = { lat: bus.latitude, lng: bus.longitude };
+            if (!prev || prev.lat !== next.lat || prev.lng !== next.lng) {
+                // Animate từ prev đến next trong 1 giây
+                let start = prev || next;
+                let frame = 0;
+                const frames = 30;
+                const latStep = (next.lat - start.lat) / frames;
+                const lngStep = (next.lng - start.lng) / frames;
+                function animate() {
+                    frame++;
+                    const newLat = start.lat + latStep * frame;
+                    const newLng = start.lng + lngStep * frame;
+                    setAnimatedBusPositions(pos => ({
+                        ...pos,
+                        [bus.id]: { lat: newLat, lng: newLng }
+                    }));
+                    if (frame < frames) {
+                        setTimeout(animate, 1000 / frames);
+                    } else {
+                        setAnimatedBusPositions(pos => ({
+                            ...pos,
+                            [bus.id]: next
+                        }));
+                    }
+                }
+                animate();
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [busRoutes]);
+    // Danh sách điểm dừng cứng lấy từ database
+    const [fixedStops, setFixedStops] = useState([]);
+    useEffect(() => {
+        // Fetch fixed stops from backend
+        const fetchFixedStops = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/stops');
+                if (!res.ok) throw new Error('Network response was not ok');
+                const stops = await res.json();
+                setFixedStops(stops);
+            } catch (err) {
+                console.error('Lỗi tải điểm dừng:', err);
+                setFixedStops([]);
+            }
+        };
+        fetchFixedStops();
+    }, []);
         // Hàm lấy danh sách xe buýt có lịch trình trong tuần đã chọn
         // Lấy danh sách biển số xe buýt có lịch trình trong tuần đã chọn
         const getBusPlatesForSelectedWeek = () => {
@@ -150,18 +204,6 @@ const Routes = ({ isLoaded, loadError }) => {
         };
     // #region State chính
     // const [directions, setDirections] = useState({}); // Sẽ chuyển sang logic của Leaflet
-    const [searchTerm, setSearchTerm] = useState(''); // Từ khóa tìm kiếm xe
-    const [selectedBus, setSelectedBus] = useState(null); // Xe đang được chọn để hiển thị InfoWindow
-    const [selectedRouteId, setSelectedRouteId] = useState(null); // Tuyến đang được routing
-    const [busRoutes, setBusRoutes] = useState([]); // Danh sách xe buýt
-    const [routeStops, setRouteStops] = useState({}); // Lưu các điểm dừng của từng tuyến
-    const [loading, setLoading] = useState(true); // Trạng thái loading
-    const [error, setError] = useState(null); // Lưu lỗi
-    const markerRefs = useRef({});
-    // State cho tuần lịch trình
-    const [weeks, setWeeks] = useState([]);
-    const [selectedWeek, setSelectedWeek] = useState('');
-    const [schedules, setSchedules] = useState([]);
         // Hàm lấy danh sách tuần từ dữ liệu lịch trình
         const getWeeksFromData = (data) => {
             if (!data || data.length === 0) return [];
@@ -196,63 +238,78 @@ const Routes = ({ isLoaded, loadError }) => {
 
     // #region useEffect - Fetch dữ liệu
     // Load xe buýt từ DB (XeBus)
+    const isFirstLoad = useRef(true);
     useEffect(() => {
-            // Fetch danh sách xe buýt và lịch trình từ API backend
-            const fetchBusesAndSchedules = async () => {
-                try {
-                    if (loading) setLoading(false);
-                    // Fetch buses
-                    const res = await fetch('http://localhost:5000/buses');
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    const data = await res.json();
-                    const formattedBuses = data.map((bus, idx) => ({
-                        id: String(bus.id).padStart(2, '0'),
-                        status: 'N/A',
-                        trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
-                        timestamp: new Date().toISOString(),
-                        latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
-                        longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
-                        speed: bus.speed != null ? bus.speed : 0,
-                        isOnline: bus.speed != null,
-                        tuyen_duong_id: bus.tuyen_duong_id,
-                        calculateDelay: () => 'N/A',
-                        updateLocation: () => {}
-                    }));
-                    setBusRoutes(formattedBuses);
-                    // Fetch stops từ API routes
-                    const routesRes = await fetch('http://localhost:5000/routes');
-                    if (routesRes.ok) {
-                        const routesData = await routesRes.json();
-                        const stopsData = {};
-                        for (const route of routesData) {
-                            const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
-                            if (stopsRes.ok) {
-                                stopsData[route.id] = await stopsRes.json();
-                            }
+        let isMounted = true;
+        // Hàm fetch dữ liệu xe buýt và lịch trình
+        const fetchBusesAndSchedules = async () => {
+            try {
+                if (loading) setLoading(false);
+                // Fetch buses
+                const res = await fetch('http://localhost:5000/buses');
+                if (!res.ok) throw new Error('Network response was not ok');
+                const data = await res.json();
+                const formattedBuses = data.map((bus, idx) => ({
+                    id: String(bus.id).padStart(2, '0'),
+                    status: 'N/A',
+                    trackingId: bus.bien_so_xe || `TRK${String(idx + 1).padStart(3, '0')}`,
+                    timestamp: new Date().toISOString(),
+                    latitude: Number(bus.latitude) || (10.8231 + (idx * 0.01)),
+                    longitude: Number(bus.longitude) || (106.6297 + (idx * 0.01)),
+                    speed: bus.speed != null ? bus.speed : 0,
+                    isOnline: bus.speed != null,
+                    tuyen_duong_id: bus.tuyen_duong_id,
+                    calculateDelay: () => 'N/A',
+                    updateLocation: () => {}
+                }));
+                if (isMounted) setBusRoutes(formattedBuses);
+                // Fetch stops từ API routes
+                const routesRes = await fetch('http://localhost:5000/routes');
+                if (routesRes.ok) {
+                    const routesData = await routesRes.json();
+                    const stopsData = {};
+                    for (const route of routesData) {
+                        const stopsRes = await fetch(`http://localhost:5000/routes/${route.id}/stops`);
+                        if (stopsRes.ok) {
+                            stopsData[route.id] = await stopsRes.json();
                         }
-                        setRouteStops(stopsData);
                     }
-                    // Fetch schedules để lấy tuần
-                    const schedulesRes = await fetch('http://localhost:5000/schedules');
-                    if (schedulesRes.ok) {
-                        const schedulesData = await schedulesRes.json();
-                        setSchedules(schedulesData);
-                        const weekList = getWeeksFromData(schedulesData);
-                        setWeeks(weekList);
-                        // Nếu chưa chọn tuần, tự động chọn tuần đầu tiên
-                        if (!selectedWeek && weekList.length > 0) setSelectedWeek(weekList[0].value);
+                    if (isMounted) setRouteStops(stopsData);
+                }
+                // Fetch schedules để lấy tuần
+                const schedulesRes = await fetch('http://localhost:5000/schedules');
+                if (schedulesRes.ok) {
+                    const schedulesData = await schedulesRes.json();
+                    if (isMounted) setSchedules(schedulesData);
+                    const weekList = getWeeksFromData(schedulesData);
+                    if (isMounted) setWeeks(weekList);
+                    // Chỉ set tuần đầu tiên khi lần đầu load
+                    if (isFirstLoad.current && weekList.length > 0 && isMounted) {
+                        setSelectedWeek(weekList[0].value);
+                        isFirstLoad.current = false;
                     }
-                    setError(null);
-                } catch (err) {
-                    console.error('Lỗi tải dữ liệu xe/lịch trình:', err);
+                }
+                if (isMounted) setError(null);
+            } catch (err) {
+                console.error('Lỗi tải dữ liệu xe/lịch trình:', err);
+                if (isMounted) {
                     setError('Không thể tải danh sách xe/lịch trình');
                     setBusRoutes([]);
-                } finally {
-                    setLoading(false);
                 }
-            };
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        fetchBusesAndSchedules();
+        // Cập nhật vị trí xe buýt liên tục mỗi 5 giây
+        const interval = setInterval(() => {
             fetchBusesAndSchedules();
-    }, [isLoaded, loading]);
+        }, 5000);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [isLoaded]);
     // #endregion
 
     // #region Xử lý Google Maps
@@ -448,10 +505,11 @@ const Routes = ({ isLoaded, loadError }) => {
                                     gioXuatPhat = sch.gio_xuat_phat;
                                 }
                             }
+                            const animatedPos = animatedBusPositions[bus.id] || { lat: bus.latitude, lng: bus.longitude };
                             return (
                                 <Marker
                                     key={bus.id}
-                                    position={[bus.latitude, bus.longitude]}
+                                    position={[animatedPos.lat, animatedPos.lng]}
                                     icon={
                                         !bus.isOnline ? redIcon :
                                         bus.speed === 0 ? yellowIcon :
@@ -464,7 +522,7 @@ const Routes = ({ isLoaded, loadError }) => {
                                     ref={(ref) => { markerRefs.current[bus.id] = ref; }}
                                 >
                                     {selectedBus && selectedBus.id === bus.id && (
-                                        <Popup position={[bus.latitude, bus.longitude]} onClose={() => setSelectedBus(null)}>
+                                        <Popup position={[animatedPos.lat, animatedPos.lng]} onClose={() => setSelectedBus(null)}>
                                             <div style={{ padding: '10px', minWidth: '200px' }}>
                                                 <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {bus.id}</h3>
                                                 <p style={{ margin: '5px 0' }}><strong>Biển số xe:</strong> {bus.trackingId}</p>
@@ -473,8 +531,8 @@ const Routes = ({ isLoaded, loadError }) => {
                                                 <p style={{ margin: '5px 0' }}><strong>Ngày chạy:</strong> {scheduleDate ? new Date(scheduleDate).toLocaleDateString('vi-VN') : 'Không xác định'}</p>
                                                 <p style={{ margin: '5px 0' }}><strong>Giờ xuất phát:</strong> {gioXuatPhat || 'Không xác định'}</p>
                                                 <p style={{ margin: '5px 0', fontSize: 12 }}>
-                                                    <strong>Vĩ độ:</strong> {bus.latitude.toFixed(6)}<br/>
-                                                    <strong>Kinh độ:</strong> {bus.longitude.toFixed(6)}
+                                                    <strong>Vĩ độ:</strong> {animatedPos.lat.toFixed(6)}<br/>
+                                                    <strong>Kinh độ:</strong> {animatedPos.lng.toFixed(6)}
                                                 </p>
                                             </div>
                                         </Popup>
