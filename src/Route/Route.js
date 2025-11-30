@@ -116,6 +116,7 @@ const blueIcon = new L.Icon({
 const Routes = ({ isLoaded, loadError }) => {
     // State declarations (move to top)
     const [animatedBusPositions, setAnimatedBusPositions] = useState({});
+    const [isAnimating, setIsAnimating] = useState(false);
     const [searchTerm, setSearchTerm] = useState(''); // Từ khóa tìm kiếm xe
     const [selectedBus, setSelectedBus] = useState(null); // Xe đang được chọn để hiển thị InfoWindow
     const [selectedRouteId, setSelectedRouteId] = useState(null); // Tuyến đang được routing
@@ -130,36 +131,44 @@ const Routes = ({ isLoaded, loadError }) => {
 
     // Nội suy vị trí marker khi busRoutes thay đổi
     useEffect(() => {
-        // Chỉ animate các marker xe buýt
+        // Không animate marker nếu đang chạy animation tuyến đường
+        if (isAnimating) return;
         busRoutes.forEach(bus => {
             const prev = animatedBusPositions[bus.id];
             const next = { lat: bus.latitude, lng: bus.longitude };
-            if (!prev || prev.lat !== next.lat || prev.lng !== next.lng) {
-                // Animate từ prev đến next trong 1 giây
-                let start = prev || next;
-                let frame = 0;
-                const frames = 30;
-                const latStep = (next.lat - start.lat) / frames;
-                const lngStep = (next.lng - start.lng) / frames;
-                function animate() {
-                    frame++;
-                    const newLat = start.lat + latStep * frame;
-                    const newLng = start.lng + lngStep * frame;
+            // Nếu chưa có vị trí trước đó, set luôn vị trí hiện tại
+            if (!prev) {
+                setAnimatedBusPositions(pos => ({
+                    ...pos,
+                    [bus.id]: next
+                }));
+                return;
+            }
+            // Nếu vị trí không đổi, không animate lại
+            if (prev.lat === next.lat && prev.lng === next.lng) return;
+            // Animate từ prev đến next trong 1 giây
+            let frame = 0;
+            const frames = 30;
+            const latStep = (next.lat - prev.lat) / frames;
+            const lngStep = (next.lng - prev.lng) / frames;
+            function animate() {
+                frame++;
+                const newLat = prev.lat + latStep * frame;
+                const newLng = prev.lng + lngStep * frame;
+                setAnimatedBusPositions(pos => ({
+                    ...pos,
+                    [bus.id]: { lat: newLat, lng: newLng }
+                }));
+                if (frame < frames) {
+                    setTimeout(animate, 1000 / frames);
+                } else {
                     setAnimatedBusPositions(pos => ({
                         ...pos,
-                        [bus.id]: { lat: newLat, lng: newLng }
+                        [bus.id]: next
                     }));
-                    if (frame < frames) {
-                        setTimeout(animate, 1000 / frames);
-                    } else {
-                        setAnimatedBusPositions(pos => ({
-                            ...pos,
-                            [bus.id]: next
-                        }));
-                    }
                 }
-                animate();
             }
+            animate();
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [busRoutes]);
@@ -419,6 +428,49 @@ const Routes = ({ isLoaded, loadError }) => {
             const stops = routeStops[bus.tuyen_duong_id] || [];
             if (stops.length >= 2) {
                 setSelectedRouteId(bus.tuyen_duong_id);
+                // Animation: Di chuyển marker theo tuyến đường thực tế
+                const waypoints = stops.map(stop => L.latLng(Number(stop.latitude), Number(stop.longitude)));
+                if (waypoints.length >= 2 && markerRefs.current[bus.id]) {
+                    setIsAnimating(true);
+                    // Tạo routing control tạm để lấy route
+                    const map = markerRefs.current[bus.id]._map;
+                    const routingControl = L.Routing.control({
+                        waypoints,
+                        addWaypoints: false,
+                        draggableWaypoints: false,
+                        fitSelectedRoutes: false,
+                        show: false
+                    }).on('routesfound', function (ev) {
+                        const coords = (ev.routes && ev.routes[0] && Array.isArray(ev.routes[0].coordinates)) ? ev.routes[0].coordinates : [];
+                        let i = 0;
+                        function animate() {
+                            if (coords.length === 0) {
+                                setIsAnimating(false);
+                                routingControl.remove();
+                                return;
+                            }
+                            if (i < coords.length && coords[i] && typeof coords[i].lat === 'number' && typeof coords[i].lng === 'number') {
+                                setAnimatedBusPositions(pos => ({
+                                    ...pos,
+                                    [bus.id]: { lat: coords[i].lat, lng: coords[i].lng }
+                                }));
+                                i++;
+                                setTimeout(animate, 80);
+                            } else {
+                                    // Đảm bảo marker dừng đúng vị trí cuối cùng
+                                    if (coords.length > 0 && typeof coords[coords.length-1]?.lat === 'number' && typeof coords[coords.length-1]?.lng === 'number') {
+                                    setAnimatedBusPositions(pos => ({
+                                    ...pos,
+                                    [bus.id]: { lat: coords[coords.length-1].lat, lng: coords[coords.length-1].lng }
+                        }));
+                    }
+                            setIsAnimating(false);
+                            routingControl.remove();
+                            }
+                        }
+                        animate();
+                    }).addTo(map);
+                }
             } else {
                 setSelectedRouteId(null);
             }
@@ -505,24 +557,29 @@ const Routes = ({ isLoaded, loadError }) => {
                                     gioXuatPhat = sch.gio_xuat_phat;
                                 }
                             }
-                            const animatedPos = animatedBusPositions[bus.id] || { lat: bus.latitude, lng: bus.longitude };
+                            const animatedPos = animatedBusPositions[bus.id];
+                            const markerPosition = animatedPos && typeof animatedPos.lat === 'number' && typeof animatedPos.lng === 'number'
+                                ? { lat: animatedPos.lat, lng: animatedPos.lng }
+                                : { lat: bus.latitude, lng: bus.longitude };
                             return (
                                 <Marker
                                     key={bus.id}
-                                    position={[animatedPos.lat, animatedPos.lng]}
+                                    position={[markerPosition.lat, markerPosition.lng]}
                                     icon={
                                         !bus.isOnline ? redIcon :
                                         bus.speed === 0 ? yellowIcon :
                                         greenIcon
                                     }
                                     eventHandlers={{ click: () => {
-                                        handleShowBus(bus.id);
-                                        setSelectedRouteId(bus.tuyen_duong_id);
+                                        if (!isAnimating) {
+                                            handleShowBus(bus.id);
+                                            setSelectedRouteId(bus.tuyen_duong_id);
+                                        }
                                     } }}
                                     ref={(ref) => { markerRefs.current[bus.id] = ref; }}
                                 >
                                     {selectedBus && selectedBus.id === bus.id && (
-                                        <Popup position={[animatedPos.lat, animatedPos.lng]} onClose={() => setSelectedBus(null)}>
+                                        <Popup position={[markerPosition.lat, markerPosition.lng]} onClose={() => setSelectedBus(null)}>
                                             <div style={{ padding: '10px', minWidth: '200px' }}>
                                                 <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>Xe {bus.id}</h3>
                                                 <p style={{ margin: '5px 0' }}><strong>Biển số xe:</strong> {bus.trackingId}</p>
@@ -531,8 +588,8 @@ const Routes = ({ isLoaded, loadError }) => {
                                                 <p style={{ margin: '5px 0' }}><strong>Ngày chạy:</strong> {scheduleDate ? new Date(scheduleDate).toLocaleDateString('vi-VN') : 'Không xác định'}</p>
                                                 <p style={{ margin: '5px 0' }}><strong>Giờ xuất phát:</strong> {gioXuatPhat || 'Không xác định'}</p>
                                                 <p style={{ margin: '5px 0', fontSize: 12 }}>
-                                                    <strong>Vĩ độ:</strong> {animatedPos.lat.toFixed(6)}<br/>
-                                                    <strong>Kinh độ:</strong> {animatedPos.lng.toFixed(6)}
+                                                    <strong>Vĩ độ:</strong> {markerPosition.lat.toFixed(6)}<br/>
+                                                    <strong>Kinh độ:</strong> {markerPosition.lng.toFixed(6)}
                                                 </p>
                                             </div>
                                         </Popup>
